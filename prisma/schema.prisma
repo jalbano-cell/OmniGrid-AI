@@ -1,0 +1,245 @@
+// OmniGrid AI — Prisma schema
+// PostgreSQL (Neon) — the schema itself is portable to any Postgres host,
+// just swap the DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Core CRM
+// ---------------------------------------------------------------------------
+
+enum BusinessStatus {
+  NEW
+  DRAFTED
+  APPROVED
+  SENT
+  REPLIED
+  INTERESTED
+  MEETING_SCHEDULED
+  CLOSED_WON
+  CLOSED_LOST
+  DO_NOT_CONTACT
+}
+
+model Business {
+  id               String         @id @default(cuid())
+  name             String
+  industry         String
+  city             String
+  province         String?
+  country          String         @default("Canada")
+  website          String?
+  email            String?
+  phone            String?
+  address          String?
+  googleProfile    String?
+  socialLinks      Json? // { facebook, instagram, linkedin, twitter, tiktok }
+  source           String? // the search query that discovered this lead
+  status           BusinessStatus @default(NEW)
+  opportunityScore Int? // 0-100, derived from latest audit
+  lastContactDate  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  audits       Audit[]
+  outreach     Outreach[]
+  meetings     Meeting[]
+  notes        Note[]
+  statusEvents StatusEvent[]
+
+  // Prevent duplicate leads: same website is the strongest signal; when no
+  // website exists we fall back to name+city uniqueness at the app layer.
+  @@unique([website])
+  @@index([industry, city])
+  @@index([status])
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  content    String
+  createdAt  DateTime @default(now())
+}
+
+model StatusEvent {
+  id         String         @id @default(cuid())
+  businessId String
+  business   Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  status     BusinessStatus
+  note       String?
+  createdAt  DateTime       @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Website audits
+// ---------------------------------------------------------------------------
+
+model Audit {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  url              String
+  overallScore     Int
+  opportunityScore Int
+
+  uiuxScore          Int
+  mobileScore        Int
+  navigationScore    Int
+  accessibilityScore Int
+  seoScore           Int
+  performanceScore   Int
+  ctaScore           Int
+  trustScore         Int
+  brandScore         Int
+
+  hasSsl           Boolean
+  loadTimeMs       Int?
+  contactInfoFound Boolean
+
+  strengths       Json // string[]
+  weaknesses      Json // string[]
+  recommendations Json // string[]
+  brokenLinks     Json // string[]
+  rawFindings     Json // full heuristic detail, for transparency/debugging
+
+  createdAt DateTime @default(now())
+
+  outreach Outreach[]
+
+  @@index([businessId])
+}
+
+// ---------------------------------------------------------------------------
+// Outreach / approval workflow
+// ---------------------------------------------------------------------------
+
+enum OutreachStatus {
+  DRAFTED
+  APPROVED
+  REJECTED
+  SENT
+  REPLIED
+  INTERESTED
+  MEETING_SCHEDULED
+  CLOSED
+}
+
+model Outreach {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  auditId    String?
+  audit      Audit?   @relation(fields: [auditId], references: [id])
+
+  subject         String
+  body            String
+  summary         String
+  confidenceScore Int
+
+  status OutreachStatus @default(DRAFTED)
+
+  toEmail        String?
+  gmailMessageId String?
+  gmailThreadId  String?
+
+  draftedAt    DateTime  @default(now())
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  sentAt       DateTime?
+  repliedAt    DateTime?
+  rejectReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Calendar / meetings
+// ---------------------------------------------------------------------------
+
+model Meeting {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  title           String
+  attendees       Json // string[] of emails
+  datetime        DateTime
+  durationMinutes Int      @default(30)
+  calendarEventId String?
+  calendarLink    String?
+  status          String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+}
+
+// ---------------------------------------------------------------------------
+// Logging
+// ---------------------------------------------------------------------------
+
+enum LogType {
+  TOOL_CALL
+  SEARCH
+  AUDIT
+  EMAIL_GENERATED
+  APPROVAL_ACTION
+  CALENDAR_EVENT
+  ERROR
+}
+
+model LogEntry {
+  id         String   @id @default(cuid())
+  type       LogType
+  message    String
+  metadata   Json?
+  businessId String?
+  createdAt  DateTime @default(now())
+
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Settings (singleton) + Google OAuth token storage
+// ---------------------------------------------------------------------------
+
+model Settings {
+  id                      Int      @id @default(1)
+  industries              Json // string[]
+  cities                  Json // string[]
+  dailyResearchLimit      Int      @default(50)
+  dailyEmailApprovalLimit Int      @default(20)
+  emailSignature          String   @default("")
+  agencyName              String   @default("")
+  agencyWebsite           String   @default("")
+  agencyInfo              String   @default("")
+  approvalMode            Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+}
+
+// Single-row table holding the OAuth tokens for the one Google account this
+// internal tool sends mail / creates calendar events as.
+model GoogleAuth {
+  id           Int      @id @default(1)
+  accessToken  String
+  refreshToken String
+  expiryDate   BigInt
+  scope        String
+  email        String?
+  updatedAt    DateTime @updatedAt
+}
