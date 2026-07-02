@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 const SINGLETON_ID = 1;
@@ -10,17 +11,26 @@ export async function getSettings() {
   const existing = await prisma.settings.findUnique({ where: { id: SINGLETON_ID } });
   if (existing) return existing;
 
-  // upsert (not create) — concurrent first-requests (e.g. parallel page
-  // prerenders) would otherwise race on the same unique id.
-  return prisma.settings.upsert({
-    where: { id: SINGLETON_ID },
-    create: {
-      id: SINGLETON_ID,
-      industries: DEFAULT_INDUSTRIES,
-      cities: DEFAULT_CITIES,
-    },
-    update: {},
-  });
+  try {
+    return await prisma.settings.create({
+      data: {
+        id: SINGLETON_ID,
+        industries: DEFAULT_INDUSTRIES,
+        cities: DEFAULT_CITIES,
+      },
+    });
+  } catch (err) {
+    // Concurrent first-requests (e.g. parallel page prerenders) can both see
+    // "no row yet" and race to create it. Through Neon's pooled (PgBouncer)
+    // connection, upsert's ON CONFLICT doesn't reliably absorb this the way
+    // it would on a direct connection, so we handle the race explicitly:
+    // if someone else won, just read what they created.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const wonByOther = await prisma.settings.findUnique({ where: { id: SINGLETON_ID } });
+      if (wonByOther) return wonByOther;
+    }
+    throw err;
+  }
 }
 
 export async function updateSettings(data: {
