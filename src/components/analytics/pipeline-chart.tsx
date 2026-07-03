@@ -5,13 +5,13 @@ import { CHART_INK, CATEGORICAL } from "@/lib/chartPalette";
 
 const STAGE_ORDER = [
   "NEW", "DRAFTED", "APPROVED", "SENT", "REPLIED", "INTERESTED",
-  "MEETING_SCHEDULED", "CLOSED_WON", "CLOSED_LOST", "DO_NOT_CONTACT",
+  "MEETING_SCHEDULED", "CLOSED_WON", "CLOSED_LOST", "DO_NOT_CONTACT", "COLD",
 ];
 
 const STAGE_LABELS: Record<string, string> = {
   NEW: "New", DRAFTED: "Drafted", APPROVED: "Approved", SENT: "Sent", REPLIED: "Replied",
   INTERESTED: "Interested", MEETING_SCHEDULED: "Meeting Scheduled", CLOSED_WON: "Closed Won",
-  CLOSED_LOST: "Closed Lost", DO_NOT_CONTACT: "Do Not Contact",
+  CLOSED_LOST: "Closed Lost", DO_NOT_CONTACT: "Do Not Contact", COLD: "Cold",
 };
 
 export function PipelineChart({ data }: { data: { status: string; count: number }[] }) {

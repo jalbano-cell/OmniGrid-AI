@@ -22,6 +22,32 @@ const SUB_SCORES: { key: keyof Audit; label: string }[] = [
   { key: "brandScore", label: "Brand Consistency" },
 ];
 
+interface ScoreBreakdownPart {
+  score: number;
+  reasoning: string;
+}
+
+interface ScoreBreakdown {
+  websiteQuality: ScoreBreakdownPart;
+  businessPotential: ScoreBreakdownPart;
+  conversionOpportunity: ScoreBreakdownPart;
+  designWeaknessSeverity: ScoreBreakdownPart;
+  serviceValue: { level: "high" | "medium" | "low"; reasoning: string };
+}
+
+const BREAKDOWN_ROWS: { key: keyof Omit<ScoreBreakdown, "serviceValue">; label: string }[] = [
+  { key: "websiteQuality", label: "Website Quality" },
+  { key: "businessPotential", label: "Business Potential" },
+  { key: "conversionOpportunity", label: "Conversion Opportunity" },
+  { key: "designWeaknessSeverity", label: "Design Weakness Severity" },
+];
+
+const SERVICE_VALUE_STYLE: Record<string, string> = {
+  high: "text-[oklch(0.72_0.14_165)]",
+  medium: "text-[oklch(0.75_0.14_75)]",
+  low: "text-muted-foreground",
+};
+
 export function AuditHistory({ audits }: { audits: Audit[] }) {
   if (audits.length === 0) {
     return <EmptyState icon={ScanSearch} title="No audits yet" description="Run a website audit from the header above." />;
@@ -57,6 +83,40 @@ export function AuditHistory({ audits }: { audits: Audit[] }) {
                 </div>
               ))}
             </div>
+
+            {audit.scoreBreakdown && (
+              <div className="rounded-md border border-border/60 p-3 space-y-2.5">
+                <p className="text-xs font-medium">Score Breakdown &amp; Reasoning</p>
+                {BREAKDOWN_ROWS.map(({ key, label }) => {
+                  const part = (audit.scoreBreakdown as unknown as ScoreBreakdown)[key];
+                  if (!part) return null;
+                  return (
+                    <div key={key} className="flex gap-3 text-xs">
+                      <span className="w-10 shrink-0 tabular-nums text-muted-foreground">{part.score}</span>
+                      <div>
+                        <p className="font-medium">{label}</p>
+                        <p className="text-muted-foreground">{part.reasoning}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(audit.scoreBreakdown as unknown as ScoreBreakdown).serviceValue && (
+                  <div className="flex gap-3 text-xs">
+                    <span
+                      className={`w-10 shrink-0 uppercase font-medium ${
+                        SERVICE_VALUE_STYLE[(audit.scoreBreakdown as unknown as ScoreBreakdown).serviceValue.level] ?? ""
+                      }`}
+                    >
+                      {(audit.scoreBreakdown as unknown as ScoreBreakdown).serviceValue.level}
+                    </span>
+                    <div>
+                      <p className="font-medium">Service Value</p>
+                      <p className="text-muted-foreground">{(audit.scoreBreakdown as unknown as ScoreBreakdown).serviceValue.reasoning}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div>

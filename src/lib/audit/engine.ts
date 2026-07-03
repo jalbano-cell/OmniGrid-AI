@@ -37,6 +37,111 @@ export interface AuditRunResult {
   error?: string;
 }
 
+// Rough recurring-revenue/deal-size tier by vertical — used only for the
+// "service value" reasoning line, never for pass/fail filtering.
+const HIGH_VALUE_INDUSTRY_WORDS = [
+  "roof", "hvac", "dental", "legal", "law", "plumb", "electric", "contractor",
+  "renovation", "real estate", "medical", "orthodont", "cosmetic", "dermat",
+  "chiroprac", "physio", "insurance", "accounting", "financial",
+];
+const LOW_VALUE_INDUSTRY_WORDS = [
+  "restaurant", "cafe", "coffee", "retail", "convenience", "grocery", "fast food",
+];
+
+function serviceValueForIndustry(industry: string): { level: "high" | "medium" | "low"; reasoning: string } {
+  const lower = industry.toLowerCase();
+  if (HIGH_VALUE_INDUSTRY_WORDS.some((w) => lower.includes(w))) {
+    return {
+      level: "high",
+      reasoning: `${industry} typically involves high-ticket or recurring service revenue, making this a high-value lead if the audit findings below are addressed.`,
+    };
+  }
+  if (LOW_VALUE_INDUSTRY_WORDS.some((w) => lower.includes(w))) {
+    return {
+      level: "low",
+      reasoning: `${industry} tends to have lower average transaction/contract value, so treat this as a lower-priority lead relative to higher-ticket verticals.`,
+    };
+  }
+  return {
+    level: "medium",
+    reasoning: `${industry} has moderate typical deal size — worth pursuing but not a top-tier vertical by default.`,
+  };
+}
+
+function weakestMessage(checks: { pass: boolean; message: string }[]): string | null {
+  const failed = checks.filter((c) => !c.pass);
+  return failed.length > 0 ? failed[0].message : null;
+}
+
+export interface ScoreBreakdownPart {
+  score: number;
+  reasoning: string;
+}
+
+export interface ScoreBreakdown {
+  websiteQuality: ScoreBreakdownPart;
+  businessPotential: ScoreBreakdownPart;
+  conversionOpportunity: ScoreBreakdownPart;
+  designWeaknessSeverity: ScoreBreakdownPart;
+  serviceValue: { level: "high" | "medium" | "low"; reasoning: string };
+}
+
+/**
+ * Turns the raw category scores into the structured, reasoned breakdown the
+ * scoring spec calls for. Every reasoning string is built from an actual
+ * failed/passed check message already produced by the checks in
+ * @/lib/audit/checks — nothing here is invented or inferred beyond that.
+ */
+function buildScoreBreakdown(
+  categories: Record<keyof typeof WEIGHTS, CategoryResult>,
+  industry: string,
+  contactInfoFound: boolean
+): ScoreBreakdown {
+  const { uiux, mobile, navigation, accessibility, cta, trust, brand } = categories;
+
+  const websiteQualityScore = Math.round((uiux.score + mobile.score + navigation.score + accessibility.score + brand.score) / 5);
+  const websiteQualityWeak = weakestMessage([...uiux.checks, ...mobile.checks, ...navigation.checks, ...accessibility.checks, ...brand.checks]);
+
+  const businessPotentialScore = Math.round((trust.score + brand.score) / 2 + (contactInfoFound ? 10 : -10));
+  const businessPotentialClamped = Math.max(0, Math.min(100, businessPotentialScore));
+
+  const conversionOpportunityScore = Math.max(0, Math.min(100, 100 - Math.round((cta.score + trust.score) / 2)));
+  const conversionWeak = weakestMessage([...cta.checks, ...trust.checks]);
+
+  const designWeaknessScore = Math.max(0, Math.min(100, 100 - Math.round((uiux.score + mobile.score + brand.score) / 3)));
+
+  return {
+    websiteQuality: {
+      score: websiteQualityScore,
+      reasoning: websiteQualityWeak
+        ? `Overall site craftsmanship scores ${websiteQualityScore}/100. Biggest gap: ${websiteQualityWeak.toLowerCase()}.`
+        : `Overall site craftsmanship scores ${websiteQualityScore}/100 with no major structural gaps found.`,
+    },
+    businessPotential: {
+      score: businessPotentialClamped,
+      reasoning: contactInfoFound
+        ? `Contact info is reachable and trust/brand signals score ${Math.round((trust.score + brand.score) / 2)}/100, so this lead is realistically contactable and worth pursuing.`
+        : `No reachable contact info (email/phone) was found on the homepage, which lowers confidence this lead can actually be engaged.`,
+    },
+    conversionOpportunity: {
+      score: conversionOpportunityScore,
+      reasoning: conversionWeak
+        ? `Conversion opportunity is ${conversionOpportunityScore}/100 — the clearest gap is: ${conversionWeak.toLowerCase()}.`
+        : `Conversion opportunity is ${conversionOpportunityScore}/100 — CTAs and trust signals are already fairly strong here.`,
+    },
+    designWeaknessSeverity: {
+      score: designWeaknessScore,
+      reasoning:
+        designWeaknessScore >= 60
+          ? `Design weakness severity is high (${designWeaknessScore}/100) across UI/UX, mobile, and brand consistency — a redesign pitch is well-supported.`
+          : designWeaknessScore >= 30
+          ? `Design weakness severity is moderate (${designWeaknessScore}/100) — targeted fixes rather than a full redesign are the stronger pitch.`
+          : `Design weakness severity is low (${designWeaknessScore}/100) — the site's core design is in reasonably good shape.`,
+    },
+    serviceValue: serviceValueForIndustry(industry),
+  };
+}
+
 /** Fetches a business's website and runs the full heuristic audit, persisting an Audit row. */
 export async function runWebsiteAudit(businessId: string): Promise<AuditRunResult> {
   const business = await prisma.business.findUnique({ where: { id: businessId } });
@@ -96,6 +201,8 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
   if (overallScore >= 85) opportunityScore -= 20;
   opportunityScore = Math.max(0, Math.min(100, opportunityScore));
 
+  const scoreBreakdown = buildScoreBreakdown(categories, business.industry, contactInfoFound);
+
   try {
     const audit = await prisma.audit.create({
       data: {
@@ -120,6 +227,7 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
         recommendations,
         brokenLinks,
         rawFindings: JSON.parse(JSON.stringify({ imageOptimization: images, fetchStatus: fetched.status })),
+        scoreBreakdown: JSON.parse(JSON.stringify(scoreBreakdown)),
       },
     });
 

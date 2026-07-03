@@ -1,7 +1,8 @@
+import * as cheerio from "cheerio";
 import { prisma } from "@/lib/db/prisma";
 import { webSearchTool } from "@/lib/tools/webSearch";
 import { fetchHtml } from "@/lib/audit/fetchHtml";
-import { extractContactInfo } from "@/lib/services/contactExtractor";
+import { extractContactInfo, type ExtractedContactInfo } from "@/lib/services/contactExtractor";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getLeadsFoundToday, getSettings } from "@/lib/services/settings";
 import { syncLeadToAirtable } from "@/lib/services/airtable";
@@ -19,8 +20,70 @@ export interface LeadSearchOutcome {
   created: number;
   skippedDuplicates: number;
   skippedUnreachable: number;
+  skippedLowQuality: number;
   limitReached: boolean;
   createdBusinessIds: string[];
+}
+
+const GENERIC_SERVICE_WORDS = [
+  "service", "services", "solutions", "repair", "install", "installation", "maintenance",
+  "consult", "consulting", "quote", "estimate", "appointment", "booking", "custom", "professional",
+  "residential", "commercial", "licensed", "certified", "experienced", "quality", "affordable",
+];
+
+export interface LeadQualityCheck {
+  pass: boolean;
+  score: number; // 0-100 early heuristic score
+  reason?: string;
+}
+
+/**
+ * Cheap heuristic run on a candidate's already-fetched homepage HTML, before
+ * we ever create a Business row. Cuts obviously bad leads (thin/parked pages,
+ * no discernible service offering, no way to reach them) so audits and
+ * emails are never spent on garbage. This is NOT the full website audit —
+ * just a fast pass/fail plus a rough score for early triage.
+ */
+export function filterLeadQuality(
+  html: string,
+  contact: ExtractedContactInfo,
+  industry: string
+): LeadQualityCheck {
+  const $ = cheerio.load(html);
+  const bodyText = $("body").text().replace(/\s+/g, " ").trim();
+  const title = $("title").text().trim();
+
+  if (bodyText.length < 120) {
+    return { pass: false, score: 0, reason: "Homepage has almost no visible text content (likely parked/placeholder page)" };
+  }
+
+  const lowerBody = bodyText.toLowerCase();
+  const industryWords = industry
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
+  const mentionsIndustry = industryWords.some((w) => lowerBody.includes(w));
+  const mentionsServiceWord = GENERIC_SERVICE_WORDS.some((w) => lowerBody.includes(w));
+  const hasContact = Boolean(contact.email || contact.phone);
+
+  if (!mentionsIndustry && !mentionsServiceWord && !hasContact) {
+    return { pass: false, score: 10, reason: "Could not determine what service this business actually offers from its homepage" };
+  }
+
+  // Rough 0-100 score from cheap signals only — not the full audit engine.
+  let score = 0;
+  if (title.length >= 10) score += 15;
+  if (bodyText.length >= 400) score += 20;
+  if (hasContact) score += 25;
+  if (mentionsIndustry) score += 15;
+  if (mentionsServiceWord) score += 10;
+  if ($('meta[name="viewport"]').attr("content")?.includes("width=device-width")) score += 15;
+
+  if (score < 40) {
+    return { pass: false, score, reason: `Early quality score too low (${score}/100) to be worth auditing` };
+  }
+
+  return { pass: true, score };
 }
 
 // Aggregators/directories/socials that show up in "X in Y" searches but
@@ -70,6 +133,7 @@ export async function discoverLeads(input: LeadSearchInput): Promise<LeadSearchO
     created: 0,
     skippedDuplicates: 0,
     skippedUnreachable: 0,
+    skippedLowQuality: 0,
     limitReached: remainingBudget <= 0,
     createdBusinessIds: [],
   };
@@ -117,10 +181,10 @@ export async function discoverLeads(input: LeadSearchInput): Promise<LeadSearchO
   for (const candidate of candidates) {
     if (outcome.created >= target) break;
 
-    const existing = await prisma.business.findFirst({
+    const existingByWebsite = await prisma.business.findFirst({
       where: { website: { contains: candidate.domain } },
     });
-    if (existing) {
+    if (existingByWebsite) {
       outcome.skippedDuplicates++;
       continue;
     }
@@ -137,11 +201,31 @@ export async function discoverLeads(input: LeadSearchInput): Promise<LeadSearchO
     }
 
     const contact = extractContactInfo(fetched.html, fetched.finalUrl);
+    const businessName = contact.name || cleanTitle(candidate.title) || candidate.domain;
+
+    const existingByName = await prisma.business.findFirst({
+      where: { name: { equals: businessName, mode: "insensitive" }, city: { equals: input.city, mode: "insensitive" } },
+    });
+    if (existingByName) {
+      outcome.skippedDuplicates++;
+      continue;
+    }
+
+    const quality = filterLeadQuality(fetched.html, contact, input.industry);
+    if (!quality.pass) {
+      outcome.skippedLowQuality++;
+      await logEvent({
+        type: "SEARCH",
+        message: `Filtered low-quality candidate ${candidate.domain}: ${quality.reason}`,
+        metadata: { domain: candidate.domain, score: quality.score, reason: quality.reason },
+      });
+      continue;
+    }
 
     try {
       const business = await prisma.business.create({
         data: {
-          name: contact.name || cleanTitle(candidate.title) || candidate.domain,
+          name: businessName,
           industry: input.industry,
           city: input.city,
           province: input.province,

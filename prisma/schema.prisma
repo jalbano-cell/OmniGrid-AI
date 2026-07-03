@@ -26,6 +26,7 @@ enum BusinessStatus {
   CLOSED_WON
   CLOSED_LOST
   DO_NOT_CONTACT
+  COLD // no reply 14+ days after first contact; excluded from further follow-ups
 }
 
 model Business {
@@ -45,6 +46,7 @@ model Business {
   status           BusinessStatus @default(NEW)
   opportunityScore Int? // 0-100, derived from latest audit
   lastContactDate  DateTime?
+  followUpStage    Int            @default(0) // 0 = none sent, 1 = follow-up #1 sent, 2 = follow-up #2 sent
 
   airtableRecordId String? // the linked "Leads" record in Airtable, once synced
 
@@ -113,6 +115,7 @@ model Audit {
   recommendations Json // string[]
   brokenLinks     Json // string[]
   rawFindings     Json // full heuristic detail, for transparency/debugging
+  scoreBreakdown  Json? // structured reasoning: websiteQuality, businessPotential, conversionOpportunity, designWeaknessSeverity, serviceValue — each with a score/level and a plain-language reason (null for audits run before this field existed)
 
   airtableRecordId String? // the linked "Audits" record in Airtable, once synced
 
@@ -149,6 +152,7 @@ model Outreach {
   body            String
   summary         String
   confidenceScore Int
+  sequenceNumber  Int    @default(0) // 0 = initial outreach, 1 = follow-up #1, 2 = follow-up #2
 
   status OutreachStatus @default(DRAFTED)
 
@@ -208,6 +212,7 @@ enum LogType {
   APPROVAL_ACTION
   CALENDAR_EVENT
   AIRTABLE_SYNC
+  DAILY_RUN
   ERROR
 }
 

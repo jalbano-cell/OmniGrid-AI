@@ -27,6 +27,30 @@ export function isWebSearchConfigured() {
  * only; if credentials aren't configured we return a clear error rather
  * than fabricating results.
  */
+async function callTavily(query: string, maxResults: number) {
+  const res = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
+    },
+    body: JSON.stringify({
+      query,
+      max_results: Math.min(20, Math.max(1, maxResults)),
+      search_depth: "basic",
+      topic: "general",
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Tavily API returned ${res.status}: ${body.slice(0, 300)}`);
+  }
+
+  return (await res.json()) as { results?: Array<{ title: string; url: string; content: string }> };
+}
+
 async function execute({ query, maxResults = 20 }: WebSearchInput): Promise<ToolResult<WebSearchOutput>> {
   if (!isWebSearchConfigured()) {
     const error = "web_search is not configured. Set TAVILY_API_KEY in .env (see .env.example).";
@@ -34,49 +58,34 @@ async function execute({ query, maxResults = 20 }: WebSearchInput): Promise<Tool
     return { ok: false, error };
   }
 
+  // Transient network/API errors get one retry before giving up — a single
+  // Tavily hiccup shouldn't stall the whole lead discovery pipeline.
+  let json: { results?: Array<{ title: string; url: string; content: string }> };
   try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
-      },
-      body: JSON.stringify({
-        query,
-        max_results: Math.min(20, Math.max(1, maxResults)),
-        search_depth: "basic",
-        topic: "general",
-      }),
-      signal: AbortSignal.timeout(15_000),
-    });
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Tavily API returned ${res.status}: ${body.slice(0, 300)}`);
+    try {
+      json = await callTavily(query, maxResults);
+    } catch {
+      json = await callTavily(query, maxResults);
     }
-
-    const json = (await res.json()) as {
-      results?: Array<{ title: string; url: string; content: string }>;
-    };
-
-    const items: WebSearchResultItem[] = (json.results ?? []).map((r) => ({
-      title: r.title,
-      link: r.url,
-      snippet: r.content ?? "",
-      displayLink: safeHostname(r.url),
-    }));
-
-    await logEvent({
-      type: "SEARCH",
-      message: `web_search("${query}") returned ${items.length} results`,
-      metadata: { query, resultCount: items.length },
-    });
-
-    return { ok: true, data: { items } };
   } catch (err) {
-    await logError(`web_search("${query}") failed`, err, { query });
+    await logError(`web_search("${query}") failed twice`, err, { query });
     return { ok: false, error: err instanceof Error ? err.message : "web_search failed" };
   }
+
+  const items: WebSearchResultItem[] = (json.results ?? []).map((r) => ({
+    title: r.title,
+    link: r.url,
+    snippet: r.content ?? "",
+    displayLink: safeHostname(r.url),
+  }));
+
+  await logEvent({
+    type: "SEARCH",
+    message: `web_search("${query}") returned ${items.length} results`,
+    metadata: { query, resultCount: items.length },
+  });
+
+  return { ok: true, data: { items } };
 }
 
 function safeHostname(url: string) {

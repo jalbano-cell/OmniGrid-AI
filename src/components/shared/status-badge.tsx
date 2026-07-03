@@ -15,6 +15,7 @@ const STATUS_STYLE: Record<string, string> = {
   CLOSED_LOST: "bg-destructive/15 text-destructive border-transparent",
   DO_NOT_CONTACT: "bg-destructive/15 text-destructive border-transparent",
   REJECTED: "bg-destructive/15 text-destructive border-transparent",
+  COLD: "bg-muted text-muted-foreground border-transparent",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -30,6 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
   CLOSED_LOST: "Closed Lost",
   DO_NOT_CONTACT: "Do Not Contact",
   REJECTED: "Rejected",
+  COLD: "Cold",
 };
 
 export function StatusBadge({ status, className }: { status: BusinessStatus | OutreachStatus | string; className?: string }) {

@@ -267,6 +267,7 @@ function mapBusinessStatusToLeadStatus(status: Business["status"]): AirtableLead
     case "CLOSED_WON":
     case "CLOSED_LOST":
     case "DO_NOT_CONTACT":
+    case "COLD":
       return "Closed";
     default:
       return "New";
@@ -380,6 +381,7 @@ export async function syncAuditToAirtable(audit: Audit, business: Business): Pro
         brandScore: audit.brandScore,
         weaknesses: audit.weaknesses,
         brokenLinks: audit.brokenLinks,
+        scoreBreakdown: audit.scoreBreakdown,
       },
       null,
       2

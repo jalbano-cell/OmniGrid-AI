@@ -18,7 +18,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Everything except: /login itself, Next internals, and static files.
-    "/((?!login|_next/static|_next/image|favicon.ico).*)",
+    // Everything except: /login itself, Next internals, static files, and the
+    // cron endpoint (called by Vercel Cron with no browser session — it does
+    // its own CRON_SECRET check instead).
+    "/((?!login|_next/static|_next/image|favicon.ico|api/cron).*)",
   ],
 };
