@@ -1,0 +1,2 @@
+leadId,uiUxScore,seoScore,performanceScore,conversionScore,overallScore,summary,opportunities,rawAnalysis,createdAt
+rec0000000000EXAMPLE,68,55,74,40,62,"Site is served over HTTPS and has substantive body content.","Missing responsive viewport meta tag; no clear call-to-action language.","{""mobileScore"":30,""navigationScore"":55}",2026-01-01

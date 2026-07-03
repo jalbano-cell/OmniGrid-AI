@@ -10,13 +10,15 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "sync:airtable": "tsx scripts/syncExistingDataToAirtable.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@base-ui/react": "^1.6.0",
     "@hookform/resolvers": "^5.4.0",
     "@prisma/client": "6.19.3",
+    "airtable": "^0.12.2",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

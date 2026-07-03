@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { fetchHtml } from "@/lib/audit/fetchHtml";
 import { extractContactInfo } from "@/lib/services/contactExtractor";
 import { logEvent, logError } from "@/lib/services/logger";
+import { syncAuditToAirtable } from "@/lib/services/airtable";
 import {
   analyzeUiUx,
   analyzeMobile,
@@ -122,7 +123,7 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
       },
     });
 
-    await prisma.business.update({
+    const updatedBusiness = await prisma.business.update({
       where: { id: businessId },
       data: { opportunityScore },
     });
@@ -133,6 +134,12 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
       businessId,
       metadata: { overallScore, opportunityScore },
     });
+
+    // Mirror into Airtable: Audits record + Leads.status="Audited"/score. Never
+    // lets a sync failure break the audit workflow.
+    await syncAuditToAirtable(audit, updatedBusiness).catch((err) =>
+      logError("Airtable audit sync failed", err, { businessId, auditId: audit.id })
+    );
 
     return { ok: true, auditId: audit.id };
   } catch (err) {

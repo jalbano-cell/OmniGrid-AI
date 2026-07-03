@@ -4,6 +4,7 @@ import { fetchHtml } from "@/lib/audit/fetchHtml";
 import { extractContactInfo } from "@/lib/services/contactExtractor";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getLeadsFoundToday, getSettings } from "@/lib/services/settings";
+import { syncLeadToAirtable } from "@/lib/services/airtable";
 
 export interface LeadSearchInput {
   industry: string;
@@ -162,6 +163,10 @@ export async function discoverLeads(input: LeadSearchInput): Promise<LeadSearchO
         businessId: business.id,
         metadata: { domain: candidate.domain, query },
       });
+
+      // Mirror into Airtable (find-or-create by website/name — never a duplicate).
+      // Never lets a sync failure break lead discovery.
+      await syncLeadToAirtable(business).catch((err) => logError("Airtable lead sync failed", err, { businessId: business.id }));
     } catch (err) {
       // Unique constraint race or similar — treat as a duplicate, not a fatal error.
       outcome.skippedDuplicates++;

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { calCreateTool } from "@/lib/tools/calCreate";
 import { logEvent, logError } from "@/lib/services/logger";
+import { syncMeetingToAirtable, airtableSyncStatus } from "@/lib/services/airtable";
 
 export interface ScheduleMeetingInput {
   businessId: string;
@@ -65,6 +66,15 @@ export async function scheduleDiscoveryCall(input: ScheduleMeetingInput): Promis
     businessId: input.businessId,
     metadata: { meetingId: meeting.id, datetime: input.datetime },
   });
+
+  // Mirror into Airtable: Meetings record + Leads.status. Never lets a sync
+  // failure break the calendar booking that already succeeded.
+  await syncMeetingToAirtable(meeting, business).catch((err) =>
+    logError("Airtable meeting sync failed", err, { businessId: input.businessId, meetingId: meeting.id })
+  );
+  await airtableSyncStatus(input.businessId, "Interested").catch((err) =>
+    logError("Airtable lead status sync (meeting) failed", err, { businessId: input.businessId })
+  );
 
   return { ok: true, meetingId: meeting.id };
 }

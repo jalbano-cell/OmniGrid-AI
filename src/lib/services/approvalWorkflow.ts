@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { gmailSendTool } from "@/lib/tools/gmailSend";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getEmailsApprovedToday, getSettings } from "@/lib/services/settings";
+import { syncOutreachStatusToAirtable, airtableSyncStatus } from "@/lib/services/airtable";
 
 export interface ActionResult {
   ok: boolean;
@@ -75,11 +76,17 @@ export async function approveAndSendOutreach(outreachId: string, isExplicitFollo
     }),
   ]);
 
+  // Mirror into Airtable: Outreach.status="Sent", Leads.status="Contacted".
+  // Runs immediately after the send succeeds — never blocks/undoes it.
+  await syncOutreachStatusToAirtable(outreach, "Sent").catch((err) =>
+    logError("Airtable outreach-sent sync failed", err, { outreachId })
+  );
+
   return { ok: true };
 }
 
 export async function rejectOutreach(outreachId: string, reason?: string): Promise<ActionResult> {
-  const outreach = await prisma.outreach.findUnique({ where: { id: outreachId } });
+  const outreach = await prisma.outreach.findUnique({ where: { id: outreachId }, include: { business: true } });
   if (!outreach) return { ok: false, error: "Outreach not found" };
 
   await prisma.outreach.update({
@@ -92,6 +99,11 @@ export async function rejectOutreach(outreachId: string, reason?: string): Promi
     businessId: outreach.businessId,
     metadata: { outreachId, reason },
   });
+
+  await syncOutreachStatusToAirtable(outreach, "Rejected").catch((err) =>
+    logError("Airtable outreach-rejected sync failed", err, { outreachId })
+  );
+
   return { ok: true };
 }
 
@@ -114,7 +126,7 @@ export async function editOutreach(outreachId: string, data: { subject?: string;
 
 /** Manually record a reply — there's no inbox integration, so this is a deliberate user action. */
 export async function markOutreachReplied(outreachId: string): Promise<ActionResult> {
-  const outreach = await prisma.outreach.findUnique({ where: { id: outreachId } });
+  const outreach = await prisma.outreach.findUnique({ where: { id: outreachId }, include: { business: true } });
   if (!outreach) return { ok: false, error: "Outreach not found" };
 
   const now = new Date();
@@ -124,6 +136,12 @@ export async function markOutreachReplied(outreachId: string): Promise<ActionRes
     prisma.statusEvent.create({ data: { businessId: outreach.businessId, status: "REPLIED" } }),
   ]);
   await logEvent({ type: "APPROVAL_ACTION", message: "Marked outreach as replied", businessId: outreach.businessId, metadata: { outreachId } });
+
+  // Mirror into Airtable: Outreach.status="Replied", Leads.status="Replied".
+  await syncOutreachStatusToAirtable(outreach, "Replied").catch((err) =>
+    logError("Airtable outreach-replied sync failed", err, { outreachId })
+  );
+
   return { ok: true };
 }
 
@@ -136,6 +154,11 @@ export async function markBusinessInterested(businessId: string): Promise<Action
     prisma.statusEvent.create({ data: { businessId, status: "INTERESTED" } }),
   ]);
   await logEvent({ type: "APPROVAL_ACTION", message: "Marked business as interested", businessId });
+
+  await airtableSyncStatus(businessId, "Interested").catch((err) =>
+    logError("Airtable lead-interested sync failed", err, { businessId })
+  );
+
   return { ok: true };
 }
 
@@ -146,5 +169,10 @@ export async function closeBusiness(businessId: string, won: boolean): Promise<A
     prisma.statusEvent.create({ data: { businessId, status } }),
   ]);
   await logEvent({ type: "APPROVAL_ACTION", message: `Marked business as ${status}`, businessId });
+
+  await airtableSyncStatus(businessId, "Closed").catch((err) =>
+    logError("Airtable lead-closed sync failed", err, { businessId })
+  );
+
   return { ok: true };
 }

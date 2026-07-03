@@ -46,6 +46,8 @@ model Business {
   opportunityScore Int? // 0-100, derived from latest audit
   lastContactDate  DateTime?
 
+  airtableRecordId String? // the linked "Leads" record in Airtable, once synced
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -112,6 +114,8 @@ model Audit {
   brokenLinks     Json // string[]
   rawFindings     Json // full heuristic detail, for transparency/debugging
 
+  airtableRecordId String? // the linked "Audits" record in Airtable, once synced
+
   createdAt DateTime @default(now())
 
   outreach Outreach[]
@@ -159,6 +163,8 @@ model Outreach {
   repliedAt    DateTime?
   rejectReason String?
 
+  airtableRecordId String? // the linked "Outreach" record in Airtable, once synced
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -183,6 +189,8 @@ model Meeting {
   calendarLink    String?
   status          String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
 
+  airtableRecordId String? // the linked "Meetings" record in Airtable, once synced
+
   createdAt DateTime @default(now())
 
   @@index([businessId])
@@ -199,6 +207,7 @@ enum LogType {
   EMAIL_GENERATED
   APPROVAL_ACTION
   CALENDAR_EVENT
+  AIRTABLE_SYNC
   ERROR
 }
 
@@ -242,4 +251,25 @@ model GoogleAuth {
   scope        String
   email        String?
   updatedAt    DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Airtable sync (Postgres remains the operational database; Airtable is kept
+// as a synced CRM mirror for the team to view/manage the pipeline in).
+// ---------------------------------------------------------------------------
+
+// Failed Airtable writes land here (after one retry) instead of being
+// dropped, so a sync can be replayed later without re-deriving what changed.
+model AirtableSyncQueue {
+  id        String   @id @default(cuid())
+  table     String // "Leads" | "Audits" | "Outreach" | "Meetings"
+  recordKey String // the Postgres id of the Business/Audit/Outreach/Meeting row
+  action    String // "create" | "update"
+  payload   Json // the Airtable fields payload that failed to write
+  attempts  Int      @default(1)
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([table])
 }

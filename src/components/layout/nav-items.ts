@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   ScrollText,
+  Table2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Email History", href: "/emails", icon: Mail, shortcut: "G E" },
   { label: "Calendar", href: "/calendar", icon: CalendarDays, shortcut: "G C" },
   { label: "Analytics", href: "/analytics", icon: BarChart3, shortcut: "G N" },
+  { label: "Airtable CRM", href: "/airtable-crm", icon: Table2, shortcut: "G T" },
   { label: "Settings", href: "/settings", icon: Settings, shortcut: "G S" },
   { label: "Logs", href: "/logs", icon: ScrollText, shortcut: "G G" },
 ];

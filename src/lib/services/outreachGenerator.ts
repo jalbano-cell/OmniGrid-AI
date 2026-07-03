@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/db/prisma";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getSettings } from "@/lib/services/settings";
+import { syncOutreachCreatedToAirtable } from "@/lib/services/airtable";
 import type { Audit, Business } from "@prisma/client";
 
 export interface GeneratedEmail {
@@ -180,6 +181,12 @@ export async function generateOutreachEmail(businessId: string, auditId?: string
       businessId,
       metadata: { outreachId: outreach.id, confidenceScore: generated.confidenceScore },
     });
+
+    // Mirror into Airtable: Outreach record with status "Pending Approval".
+    // Never lets a sync failure break the generation workflow.
+    await syncOutreachCreatedToAirtable(outreach, business).catch((err) =>
+      logError("Airtable outreach sync failed", err, { businessId, outreachId: outreach.id })
+    );
 
     return { ok: true, outreachId: outreach.id };
   } catch (err) {

@@ -12,9 +12,10 @@ interface IntegrationsPanelProps {
   googleEmail: string | null;
   webSearchConfigured: boolean;
   anthropicConfigured: boolean;
+  airtableConfigured: boolean;
 }
 
-export function IntegrationsPanel({ googleConnected, googleEmail, webSearchConfigured, anthropicConfigured }: IntegrationsPanelProps) {
+export function IntegrationsPanel({ googleConnected, googleEmail, webSearchConfigured, anthropicConfigured, airtableConfigured }: IntegrationsPanelProps) {
   const [pending, startTransition] = useTransition();
 
   function handleDisconnect() {
@@ -66,6 +67,16 @@ export function IntegrationsPanel({ googleConnected, googleEmail, webSearchConfi
             <p className="text-xs text-muted-foreground">Optional — improves phrasing. Falls back to a template writer if unset.</p>
           </div>
           <ConfigBadge configured={anthropicConfigured} />
+        </div>
+
+        <div className="flex items-center justify-between rounded-md border border-border/60 p-3">
+          <div>
+            <p className="text-sm font-medium">Airtable (CRM mirror)</p>
+            <p className="text-xs text-muted-foreground">
+              Postgres stays the source of truth for the app; every lead, audit, email, and meeting is also synced to Airtable. Set AIRTABLE_API_KEY and AIRTABLE_BASE_ID in .env.
+            </p>
+          </div>
+          <ConfigBadge configured={airtableConfigured} />
         </div>
       </CardContent>
     </Card>

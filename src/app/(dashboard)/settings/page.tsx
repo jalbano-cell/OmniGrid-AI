@@ -1,6 +1,7 @@
 import { getSettings } from "@/lib/services/settings";
 import { getGoogleAuthStatus } from "@/lib/google/tokenStore";
 import { isWebSearchConfigured } from "@/lib/tools/webSearch";
+import { isAirtableConfigured } from "@/lib/services/airtable";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { IntegrationsPanel } from "@/components/settings/integrations-panel";
 
@@ -19,6 +20,7 @@ export default async function SettingsPage() {
         googleEmail={googleAuth.connected ? (googleAuth.email ?? null) : null}
         webSearchConfigured={isWebSearchConfigured()}
         anthropicConfigured={Boolean(process.env.ANTHROPIC_API_KEY)}
+        airtableConfigured={isAirtableConfigured()}
       />
 
       <SettingsForm settings={settings} />
