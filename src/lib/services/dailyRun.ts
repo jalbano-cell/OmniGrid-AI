@@ -7,7 +7,6 @@ import { retryQueuedAirtableSyncs } from "@/lib/services/airtable";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getLeadsFoundToday, getSettings } from "@/lib/services/settings";
 
-const EMAIL_SCORE_THRESHOLD = 50;
 const LEADS_PER_PAIR = 3;
 const MAX_AUDITS_PER_RUN = 25;
 const MAX_EMAILS_PER_RUN = 25;
@@ -86,18 +85,18 @@ export async function runDailyPipeline(): Promise<DailyRunSummary> {
     }
   }
 
-  // Step 4: draft emails only for leads scoring >= 50 that don't already
-  // have an outreach draft/send.
-  const highScoreLeads = await prisma.business.findMany({
-    where: { opportunityScore: { gte: EMAIL_SCORE_THRESHOLD }, outreach: { none: {} } },
-    include: { audits: { orderBy: { createdAt: "desc" }, take: 1 } },
+  // Step 4: draft estimate-follow-up outreach for leads that don't already
+  // have a draft/send. This no longer depends on a website audit — outreach
+  // is personalized from researched business facts (services, service area,
+  // years in business), not website quality.
+  const readyForOutreach = await prisma.business.findMany({
+    where: { outreach: { none: {} }, status: { notIn: ["DO_NOT_CONTACT", "COLD"] } },
+    orderBy: { createdAt: "asc" },
     take: MAX_EMAILS_PER_RUN,
   });
-  for (const business of highScoreLeads) {
-    const audit = business.audits[0];
-    if (!audit) continue;
+  for (const business of readyForOutreach) {
     try {
-      const result = await generateOutreachEmail(business.id, audit.id);
+      const result = await generateOutreachEmail(business.id);
       if (result.ok) summary.emailsGenerated++;
       else summary.emailErrors++;
     } catch (err) {

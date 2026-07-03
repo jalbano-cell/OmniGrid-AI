@@ -44,7 +44,7 @@ export default async function OutreachQueuePage() {
         <EmptyState
           icon={Inbox}
           title="Queue is empty"
-          description="Generate an outreach email from a business's profile after running a website audit — it will show up here for approval."
+          description="Generate an outreach email from a business's profile — it will show up here for approval."
         />
       ) : (
         <div className="rounded-lg border border-border/60 overflow-x-auto">

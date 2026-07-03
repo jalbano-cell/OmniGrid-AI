@@ -18,7 +18,7 @@ export function CrmOutreachPanel({ outreach }: { outreach: Outreach[] }) {
       <EmptyState
         icon={Mail}
         title="No outreach yet"
-        description="Generate a draft from the header above once a website audit has run."
+        description="Generate a draft from the header above."
       />
     );
   }

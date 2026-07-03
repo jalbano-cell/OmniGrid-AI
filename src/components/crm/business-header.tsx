@@ -92,7 +92,7 @@ export function BusinessHeader({ business, latestAudit }: BusinessHeaderProps) {
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
             {latestAudit ? "Re-audit" : "Run audit"}
           </Button>
-          <Button size="sm" onClick={handleGenerate} disabled={pending || !latestAudit}>
+          <Button size="sm" onClick={handleGenerate} disabled={pending}>
             <Sparkles className="h-4 w-4" /> Generate outreach
           </Button>
           <DropdownMenu>

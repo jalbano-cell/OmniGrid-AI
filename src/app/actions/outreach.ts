@@ -19,8 +19,8 @@ function revalidateOutreachPaths(businessId?: string) {
   if (businessId) revalidatePath(`/crm/${businessId}`);
 }
 
-export async function generateOutreachAction(businessId: string, auditId?: string) {
-  const result = await generateOutreachEmail(businessId, auditId);
+export async function generateOutreachAction(businessId: string) {
+  const result = await generateOutreachEmail(businessId);
   revalidateOutreachPaths(businessId);
   return result;
 }

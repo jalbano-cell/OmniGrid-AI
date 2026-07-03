@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getSettings } from "@/lib/services/settings";
 import { syncOutreachCreatedToAirtable } from "@/lib/services/airtable";
-import type { Audit, Business } from "@prisma/client";
+import { researchBusinessProfile, type BusinessProfile } from "@/lib/services/businessProfile";
+import type { Business } from "@prisma/client";
 
 export interface GeneratedEmail {
   subject: string;
@@ -12,8 +13,8 @@ export interface GeneratedEmail {
   confidenceScore: number;
 }
 
-const TARGET_MIN_WORDS = 120;
-const TARGET_MAX_WORDS = 160;
+const TARGET_MIN_WORDS = 80;
+const TARGET_MAX_WORDS = 140;
 
 const BANNED_PHRASES = [
   "take your business to the next level",
@@ -25,89 +26,108 @@ const BANNED_PHRASES = [
   "state-of-the-art",
   "in today's digital age",
   "look no further",
+  "leverage",
+  "streamline your workflow",
+  "synergy",
+  "seamless solution",
+  "disrupt",
+  "supercharge",
+];
+
+// Our positioning changed: we no longer sell website redesigns/audits, so no
+// generated email — deterministic or Claude-drafted — may touch these topics.
+// This is a hard reject, not a style preference: any match falls back to the
+// deterministic template, which structurally never mentions any of these.
+const FORBIDDEN_TOPICS = [
+  "redesign", "outdated website", "poor seo", "seo score", "slow loading",
+  "slow load time", "page speed", "bad ux", "bad ui", "ui/ux", "accessibility issue",
+  "conversion optimization", "conversion rate", "website audit", "website score",
+  "web design", "website design",
 ];
 
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function pickTop<T>(arr: T[], n: number): T[] {
-  return arr.slice(0, n);
+function containsForbiddenTopic(text: string): string | null {
+  const lower = text.toLowerCase();
+  return FORBIDDEN_TOPICS.find((topic) => lower.includes(topic)) ?? null;
+}
+
+function areaFor(business: Business, profile: BusinessProfile): string {
+  return profile.serviceArea || [business.city, business.province].filter(Boolean).join(", ");
+}
+
+function buildOpener(business: Business, profile: BusinessProfile): string {
+  const area = areaFor(business, profile);
+  if (profile.foundedYear) {
+    return `I came across ${business.name} and saw you've been serving ${area} since ${profile.foundedYear}.`;
+  }
+  if (profile.yearsInBusiness) {
+    return `I came across ${business.name} and saw you've got ${profile.yearsInBusiness}+ years serving ${area}.`;
+  }
+  if (profile.services[0]) {
+    return `I came across ${business.name} and saw you handle ${profile.services[0].toLowerCase()} for ${area}.`;
+  }
+  return `I came across ${business.name} while looking at ${business.industry.toLowerCase()} businesses in ${area}.`;
 }
 
 /**
  * Deterministic, template-based writer. Zero hallucination risk: every
- * sentence is built directly from audit.strengths / audit.weaknesses, which
- * are themselves generated verbatim by the audit engine's checks. This is
- * the default writer and the guaranteed fallback if Claude isn't configured
- * or the API call fails.
+ * personalized detail comes directly from the researched BusinessProfile
+ * (itself extracted verbatim from the business's own site), never invented.
+ * This is the default writer and the guaranteed fallback if Claude isn't
+ * configured, the API call fails, or the Claude draft strays into a
+ * forbidden topic or outside the target word range.
  *
- * Follows the required 4-part structure: (1) specific observation from the
- * audit, (2) the business impact of that observation, (3) one small
- * actionable suggestion, (4) a soft, no-pressure CTA. Trimmed toward
- * ~120-160 words — trimming only ever removes extra real findings, never
- * pads with invented content.
+ * Structure: (1) a factual, personalized opener, (2) the core message framed
+ * as a possibility ("if this is something your team currently handles
+ * manually...") rather than an assumed problem, (3) a soft, no-pressure CTA.
  */
-function buildDeterministicEmail(
+export function buildDeterministicEmail(
   business: Business,
-  audit: Audit,
+  profile: BusinessProfile,
   signature: string,
   agencyName: string
 ): GeneratedEmail {
-  const weaknesses = audit.weaknesses as string[];
-  const recommendations = audit.recommendations as string[];
-  const topWeakness = weaknesses[0];
-  const secondWeakness = weaknesses[1];
-  const topRecommendation = recommendations[0];
+  const closing = signature || agencyName || "OmniGrid Digital";
 
-  const subject = `Quick observation about ${business.name}'s website`;
+  const subject = `Quick question about estimate follow-up at ${business.name}`;
 
-  const bodyParts = [`Hi ${business.name} team,`, ``];
-
-  // 1. Specific observation (from audit)
-  if (topWeakness) {
-    bodyParts.push(`I was looking at ${audit.url} and noticed ${topWeakness.toLowerCase()}.`);
-  } else {
-    bodyParts.push(`I was looking at ${audit.url} and wanted to share a quick, specific observation — not a generic pitch.`);
-  }
-
-  // 2. Business impact
-  bodyParts.push(
+  const bodyParts = [
+    `Hi ${business.name} team,`,
     ``,
-    `That kind of gap tends to quietly cost you visitors who'd otherwise become customers — they land on the page, hit that friction point, and leave before ever reaching out.`
-  );
-
-  // 3. Small actionable suggestion
-  if (topRecommendation) {
-    bodyParts.push(``, topRecommendation);
-  } else if (secondWeakness) {
-    bodyParts.push(``, `A small fix worth considering: address ${secondWeakness.toLowerCase()}.`);
-  }
-
-  // 4. Soft CTA — no pressure
-  bodyParts.push(``, `No pressure either way — happy to send over the rest of what we found if it'd be useful.`, ``, signature || agencyName.trim());
+    buildOpener(business, profile),
+    ``,
+    `A lot of service businesses lose potential jobs simply because quote requests and estimates are hard to consistently follow up on. If that's something your team currently handles manually, we build lightweight automation that follows up on estimates automatically, cuts down on missed opportunities, and helps turn more quotes into booked jobs — without asking you to change how you already work.`,
+    ``,
+    `It's meant to fit alongside whatever process you're using now, rolled out gradually rather than all at once.`,
+    ``,
+    `Worth a quick conversation? Happy to share how it works.`,
+    ``,
+    closing,
+  ];
 
   let body = bodyParts.join("\n");
 
-  // Trim toward the target range by dropping the impact sentence if the
-  // draft runs long — never truncate mid-sentence, never invent filler.
+  // Trim toward the target range by dropping the rollout sentence first —
+  // never truncate mid-sentence, never pad with invented content.
   if (countWords(body) > TARGET_MAX_WORDS) {
-    const withoutImpact = bodyParts.filter(
-      (line) => !line.startsWith("That kind of gap")
-    );
-    body = withoutImpact.join("\n");
+    body = bodyParts.filter((line) => !line.startsWith("It's meant to fit")).join("\n");
   }
 
-  const referencedFindings = [topWeakness, secondWeakness].filter(Boolean).length;
-  const summary = `Outreach referencing ${referencedFindings} audit finding(s) on ${audit.url}; overall site score ${audit.overallScore}/100.`;
-  const confidenceScore = Math.min(90, 55 + referencedFindings * 15 + (topRecommendation ? 10 : 0));
+  const factsUsed = [profile.foundedYear, profile.yearsInBusiness, profile.services[0], profile.serviceArea].filter(
+    Boolean
+  ).length;
+  const summary = `Estimate-follow-up outreach for ${business.name}, personalized with ${factsUsed} researched business fact(s).`;
+  const confidenceScore = Math.min(90, 55 + factsUsed * 10);
 
   return { subject, body, summary, confidenceScore };
 }
 
 async function buildWithClaude(
   business: Business,
-  audit: Audit,
+  profile: BusinessProfile,
   signature: string,
   agencyName: string
 ): Promise<GeneratedEmail | null> {
@@ -115,40 +135,36 @@ async function buildWithClaude(
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const findings = {
-      url: audit.url,
-      overallScore: audit.overallScore,
-      strengths: audit.strengths,
-      weaknesses: audit.weaknesses,
-      recommendations: audit.recommendations,
-    };
 
     const message = await client.messages.create({
       model: "claude-sonnet-5",
       max_tokens: 900,
       system:
-        "You write short, specific, non-salesy outreach emails for a marketing agency reaching out to local businesses about their website. " +
-        "You must ONLY reference facts given to you in the audit findings JSON — never invent issues, statistics, or claims about tests that weren't run. " +
-        "The email body MUST follow this exact 4-part structure, in order: " +
-        "(1) one specific observation pulled directly from the audit findings, " +
-        "(2) one sentence on the likely business impact of that observation (lost leads/customers — reasoned, not fabricated data), " +
-        "(3) one small, concrete, actionable suggestion, " +
-        "(4) a soft call-to-action with no pressure (e.g. offering to share more, not demanding a call). " +
-        `The body must be ${TARGET_MIN_WORDS}-${TARGET_MAX_WORDS} words — concise, not a wall of text. ` +
-        `Never use these banned phrases or anything equivalent to them: ${BANNED_PHRASES.join(", ")}. ` +
-        "Tone: helpful, curious, professional. Goal: start a conversation, not pressure a sale. " +
+        "You write short outreach emails on behalf of a company that helps local service businesses (contractors, HVAC, roofing, landscaping, etc.) automate their estimate and quote follow-up process. " +
+        "We do NOT sell website redesigns, SEO, or website improvements — never mention website design, SEO, page speed, UI/UX, accessibility, conversion rate, or website audits/scoring, even in passing. " +
+        "Personalize ONLY using the factual business details provided (services, service area, founded year, years in business, about-page summary) — if a fact is null/empty, do not mention it and never invent one. " +
+        "Core message: many service businesses lose potential jobs because quote requests and estimates are hard to consistently follow up on; we build automation that helps them follow up faster while fitting into their existing process instead of replacing it, rolling out gradually. " +
+        'Frame this as a possibility, never an assumed problem — use phrasing like "If this is something your team currently handles manually..." or "If estimate follow-up is something that still takes time each week...". ' +
+        "Tone: one local business owner writing to another — conversational, concise, professional, helpful, low-pressure. Do not sound like a marketing agency, do not use buzzwords or exaggerated claims, and do not sound AI-generated. " +
+        `Never use any of these words/phrases or close equivalents: ${BANNED_PHRASES.join(", ")}. ` +
+        'End with ONE soft, low-pressure call to action, e.g. "Curious if this is something you\'re exploring", "Happy to share how it works", "Worth a quick conversation?", or "Let me know if you\'d like to see an example." Never use aggressive sales language or demand a call. ' +
+        `The email body MUST be ${TARGET_MIN_WORDS}-${TARGET_MAX_WORDS} words. ` +
         'Respond with ONLY minified JSON: {"subject": string, "body": string, "summary": string, "confidenceScore": number 0-100}. ' +
-        "confidenceScore reflects how well-grounded and specific the email is in the given findings.",
+        "confidenceScore reflects how well-grounded the email is in the given factual details (higher when more real facts were available and used).",
       messages: [
         {
           role: "user",
           content:
             `Business name: ${business.name}\n` +
             `Industry: ${business.industry}\n` +
-            `City: ${business.city}\n` +
-            `Agency name: ${agencyName || "our agency"}\n` +
+            `Location: ${[business.city, business.province].filter(Boolean).join(", ")}\n` +
+            `Agency name: ${agencyName || "OmniGrid Digital"}\n` +
             `Signature to close with: ${signature || "(none provided, sign off simply)"}\n\n` +
-            `Audit findings JSON:\n${JSON.stringify(findings, null, 2)}`,
+            `Known factual details about this business (only use what's present; omit anything null/empty from the email):\n${JSON.stringify(
+              profile,
+              null,
+              2
+            )}`,
         },
       ],
     });
@@ -158,10 +174,7 @@ async function buildWithClaude(
     if (!parsed.subject || !parsed.body) return null;
 
     const wordCount = countWords(parsed.body);
-    if (wordCount < 40 || wordCount > TARGET_MAX_WORDS + 60) {
-      // Wildly outside the requested range (model ignored instructions) —
-      // safer to fall back to the deterministic writer than ship a draft
-      // that doesn't meet the length/structure requirement.
+    if (wordCount < 50 || wordCount > TARGET_MAX_WORDS + 40) {
       await logEvent({
         type: "EMAIL_GENERATED",
         message: `Claude draft for ${business.name} was ${wordCount} words (outside allowed range) — falling back to template`,
@@ -170,10 +183,20 @@ async function buildWithClaude(
       return null;
     }
 
+    const forbidden = containsForbiddenTopic(`${parsed.subject} ${parsed.body}`);
+    if (forbidden) {
+      await logEvent({
+        type: "EMAIL_GENERATED",
+        message: `Claude draft for ${business.name} referenced a retired topic ("${forbidden}") — falling back to template`,
+        businessId: business.id,
+      });
+      return null;
+    }
+
     return {
       subject: parsed.subject,
       body: parsed.body,
-      summary: parsed.summary || "AI-generated outreach draft grounded in audit findings.",
+      summary: parsed.summary || "AI-generated outreach draft about estimate follow-up automation.",
       confidenceScore: Math.max(0, Math.min(100, Math.round(parsed.confidenceScore ?? 70))),
     };
   } catch (err) {
@@ -188,29 +211,21 @@ export interface OutreachGenerationResult {
   error?: string;
 }
 
-export async function generateOutreachEmail(businessId: string, auditId?: string): Promise<OutreachGenerationResult> {
+export async function generateOutreachEmail(businessId: string): Promise<OutreachGenerationResult> {
   const business = await prisma.business.findUnique({ where: { id: businessId } });
   if (!business) return { ok: false, error: "Business not found" };
 
-  const audit = auditId
-    ? await prisma.audit.findUnique({ where: { id: auditId } })
-    : await prisma.audit.findFirst({ where: { businessId }, orderBy: { createdAt: "desc" } });
-
-  if (!audit) {
-    return { ok: false, error: "No audit found for this business. Run a website audit first." };
-  }
-
   const settings = await getSettings();
+  const profile = await researchBusinessProfile(business);
 
   const generated =
-    (await buildWithClaude(business, audit, settings.emailSignature, settings.agencyName)) ??
-    buildDeterministicEmail(business, audit, settings.emailSignature, settings.agencyName);
+    (await buildWithClaude(business, profile, settings.emailSignature, settings.agencyName)) ??
+    buildDeterministicEmail(business, profile, settings.emailSignature, settings.agencyName);
 
   try {
     const outreach = await prisma.outreach.create({
       data: {
         businessId,
-        auditId: audit.id,
         subject: generated.subject,
         body: generated.body,
         summary: generated.summary,
@@ -248,5 +263,3 @@ export async function generateOutreachEmail(businessId: string, auditId?: string
     return { ok: false, error: "Failed to save the generated email" };
   }
 }
-
-export { pickTop, buildDeterministicEmail, buildWithClaude };

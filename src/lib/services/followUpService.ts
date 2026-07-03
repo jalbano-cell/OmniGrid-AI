@@ -32,7 +32,7 @@ function buildFollowUpEmail(business: Business, original: Outreach, stage: 1 | 2
       ``,
       `Just wanted to follow up on my note about ${originalTopic.toLowerCase()} — I know inboxes get busy, so no worries if it slipped by.`,
       ``,
-      `If it's not a priority right now, that's completely fine. If it is, I'm happy to send over the specific details we found, no strings attached.`,
+      `If it's not a priority right now, that's completely fine. If it is, happy to share how it works, no strings attached.`,
       ``,
       `Either way, appreciate you taking a look.`,
     ].join("\n");
@@ -45,7 +45,7 @@ function buildFollowUpEmail(business: Business, original: Outreach, stage: 1 | 2
     ``,
     `Last note from me on this — I don't want to clutter your inbox. I reached out a little while back about ${originalTopic.toLowerCase()}.`,
     ``,
-    `If the timing's ever right, I'm still happy to walk through what we found. If not, I'll leave it here and won't keep following up.`,
+    `If the timing's ever right, I'm still happy to walk through how it works. If not, I'll leave it here and won't keep following up.`,
     ``,
     `All the best either way.`,
   ].join("\n");
