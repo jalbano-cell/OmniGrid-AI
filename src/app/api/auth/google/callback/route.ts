@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createOAuthClient } from "@/lib/google/oauthClient";
 import { saveGoogleTokens } from "@/lib/google/tokenStore";
 import { logEvent, logError } from "@/lib/services/logger";
@@ -38,6 +39,11 @@ export async function GET(req: NextRequest) {
       message: `Connected Google account${email ? ` (${email})` : ""}`,
       metadata: { scope: tokens.scope },
     });
+
+    // Settings and Calendar are statically rendered — without this they'd keep
+    // showing "not connected" until the next deploy.
+    revalidatePath("/settings");
+    revalidatePath("/calendar");
 
     return NextResponse.redirect(`${appUrl}/settings?google_connected=1`);
   } catch (err) {
