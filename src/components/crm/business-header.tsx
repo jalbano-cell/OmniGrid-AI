@@ -84,7 +84,7 @@ export function BusinessHeader({ business, latestAudit }: BusinessHeaderProps) {
         <div className="flex items-center gap-2">
           {business.opportunityScore != null && (
             <div className="text-right mr-2">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Opportunity</p>
+              <p className="text-[12px] text-muted-foreground uppercase tracking-wide">Opportunity</p>
               <ScoreBadge score={business.opportunityScore} size="lg" />
             </div>
           )}

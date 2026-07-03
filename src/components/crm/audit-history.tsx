@@ -79,7 +79,7 @@ export function AuditHistory({ audits }: { audits: Audit[] }) {
               {SUB_SCORES.map(({ key, label }) => (
                 <div key={key} className="text-center">
                   <ScoreBadge score={audit[key] as number} size="sm" />
-                  <p className="text-[10px] text-muted-foreground mt-1">{label}</p>
+                  <p className="text-[12px] text-muted-foreground mt-1">{label}</p>
                 </div>
               ))}
             </div>

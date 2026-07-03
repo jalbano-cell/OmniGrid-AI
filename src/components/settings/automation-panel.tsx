@@ -31,9 +31,9 @@ export function AutomationPanel({ cronConfigured, lastRun }: AutomationPanelProp
   return (
     <Card className="border-border/60">
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Daily Autonomous Run</CardTitle>
+        <CardTitle className="text-sm font-medium">Autonomous Run</CardTitle>
         <CardDescription>
-          Discovers leads, filters low-quality ones, audits and drafts emails for high-scoring leads (≥ 70), and runs
+          Discovers leads, filters low-quality ones, audits and drafts emails for high-scoring leads (≥ 50), and runs
           the 3/7/14-day follow-up cadence. Everything still lands in the approval queue — nothing sends automatically.
         </CardDescription>
       </CardHeader>
@@ -43,7 +43,7 @@ export function AutomationPanel({ cronConfigured, lastRun }: AutomationPanelProp
             <p className="text-sm font-medium">Scheduled runs (Vercel Cron)</p>
             <p className="text-xs text-muted-foreground">
               {cronConfigured
-                ? "CRON_SECRET is set — /api/cron/daily-run runs daily per vercel.json's schedule."
+                ? "CRON_SECRET is set — /api/cron/daily-run runs every 2 days at 9am ET per vercel.json's schedule."
                 : "Set CRON_SECRET in .env / Vercel env vars to secure the scheduled endpoint."}
             </p>
             {lastRun && (

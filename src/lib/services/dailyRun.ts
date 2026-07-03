@@ -7,7 +7,7 @@ import { retryQueuedAirtableSyncs } from "@/lib/services/airtable";
 import { logEvent, logError } from "@/lib/services/logger";
 import { getLeadsFoundToday, getSettings } from "@/lib/services/settings";
 
-const EMAIL_SCORE_THRESHOLD = 70;
+const EMAIL_SCORE_THRESHOLD = 50;
 const LEADS_PER_PAIR = 3;
 const MAX_AUDITS_PER_RUN = 25;
 const MAX_EMAILS_PER_RUN = 25;
@@ -86,7 +86,7 @@ export async function runDailyPipeline(): Promise<DailyRunSummary> {
     }
   }
 
-  // Step 4: draft emails only for leads scoring >= 70 that don't already
+  // Step 4: draft emails only for leads scoring >= 50 that don't already
   // have an outreach draft/send.
   const highScoreLeads = await prisma.business.findMany({
     where: { opportunityScore: { gte: EMAIL_SCORE_THRESHOLD }, outreach: { none: {} } },

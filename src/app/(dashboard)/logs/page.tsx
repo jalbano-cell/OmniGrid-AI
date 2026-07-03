@@ -46,7 +46,7 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
               <div className="min-w-0 flex-1">
                 <p className="text-sm">{log.message}</p>
                 {Boolean(log.metadata) && Object.keys(log.metadata as object).length > 0 && (
-                  <pre className="mt-1 text-[11px] text-muted-foreground overflow-x-auto">
+                  <pre className="mt-1 text-[13px] text-muted-foreground overflow-x-auto">
                     {JSON.stringify(log.metadata, null, 0)}
                   </pre>
                 )}

@@ -42,11 +42,11 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 py-3 border-t border-sidebar-border flex items-center justify-between">
-        <span className="text-[11px] text-sidebar-foreground/40">Internal tool · v0.1</span>
+        <span className="text-[13px] text-sidebar-foreground/40">Internal tool · v0.1</span>
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex items-center gap-1 text-[11px] text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+            className="flex items-center gap-1 text-[13px] text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
           >
             <LogOut className="h-3 w-3" /> Sign out
           </button>

@@ -26,7 +26,7 @@ export function TopBar() {
       >
         <Search className="h-3.5 w-3.5" />
         <span className="text-xs">Search…</span>
-        <kbd className="ml-auto text-[10px] bg-muted px-1.5 py-0.5 rounded border border-border">⌘K</kbd>
+        <kbd className="ml-auto text-[12px] bg-muted px-1.5 py-0.5 rounded border border-border">⌘K</kbd>
       </Button>
       <Button variant="outline" size="icon" className="h-8 w-8 sm:hidden" onClick={() => setOpen(true)}>
         <Search className="h-4 w-4" />

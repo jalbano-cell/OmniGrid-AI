@@ -3,8 +3,15 @@ import { prisma } from "@/lib/db/prisma";
 
 const SINGLETON_ID = 1;
 
-const DEFAULT_INDUSTRIES = ["Restaurants", "Roofers", "Dental Clinics", "HVAC Companies", "Landscapers"];
-const DEFAULT_CITIES = ["Toronto", "Hamilton", "Ottawa", "London", "Mississauga"];
+const DEFAULT_INDUSTRIES = [
+  "Restaurants", "Roofers", "Dental Clinics", "HVAC Companies", "Landscapers",
+  "Chiropractors", "Physiotherapists", "Barbershops", "Beauty Salons", "Nail & Spa",
+];
+const DEFAULT_CITIES = [
+  "Toronto", "Mississauga", "Brampton", "Vaughan", "Markham", "Richmond Hill",
+  "Oakville", "Burlington", "Ajax", "Pickering", "Whitby", "Oshawa", "Milton",
+  "Newmarket", "Aurora", "Hamilton", "London",
+];
 
 /** Fetches the singleton Settings row, creating it with sane defaults on first run. */
 export async function getSettings() {
