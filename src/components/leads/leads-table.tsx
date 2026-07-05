@@ -24,13 +24,15 @@ import { ScoreBadge } from "@/components/shared/score-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { runAuditAction } from "@/app/actions/audits";
 import { deleteBusinessAction } from "@/app/actions/leads";
-import { MoreHorizontal, ScanSearch, Trash2, ExternalLink, Users, Loader2 } from "lucide-react";
+import { useMockupQueue } from "@/components/mockups/mockup-queue-context";
+import { MoreHorizontal, ScanSearch, Trash2, ExternalLink, Users, Loader2, LayoutTemplate } from "lucide-react";
 import type { Business } from "@prisma/client";
 
 export function LeadsTable({ businesses }: { businesses: Business[] }) {
   const [query, setQuery] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const { addBusiness } = useMockupQueue();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -58,6 +60,12 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
     startTransition(async () => {
       await deleteBusinessAction(id);
       toast.success(`Removed ${name}`);
+    });
+  }
+
+  function handleSendToMockup(id: string) {
+    startTransition(async () => {
+      await addBusiness(id);
     });
   }
 
@@ -132,6 +140,9 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleAudit(b.id)} disabled={!b.website}>
                         <ScanSearch className="h-4 w-4" /> Run website audit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSendToMockup(b.id)}>
+                        <LayoutTemplate className="h-4 w-4" /> Send to mockup
                       </DropdownMenuItem>
                       <DropdownMenuItem variant="destructive" onClick={() => handleDelete(b.id, b.name)}>
                         <Trash2 className="h-4 w-4" /> Delete lead

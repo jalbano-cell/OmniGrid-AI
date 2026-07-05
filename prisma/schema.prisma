@@ -53,11 +53,12 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  audits       Audit[]
-  outreach     Outreach[]
-  meetings     Meeting[]
-  notes        Note[]
-  statusEvents StatusEvent[]
+  audits          Audit[]
+  outreach        Outreach[]
+  meetings        Meeting[]
+  notes           Note[]
+  statusEvents    StatusEvent[]
+  mockupQueueItem MockupQueueItem?
 
   // Prevent duplicate leads: same website is the strongest signal; when no
   // website exists we fall back to name+city uniqueness at the app layer.
@@ -198,6 +199,36 @@ model Meeting {
   createdAt DateTime @default(now())
 
   @@index([businessId])
+}
+
+// ---------------------------------------------------------------------------
+// Mockup queue — tracks each prospect's cold-call demo from build through
+// send. The demo sites themselves are deployed elsewhere (Netlify/Vercel);
+// this just holds the pipeline stage and the link once it's live.
+// ---------------------------------------------------------------------------
+
+enum MockupStatus {
+  QUEUED
+  BUILDING
+  LIVE
+  SENT
+  REPLIED
+  BOOKED
+}
+
+model MockupQueueItem {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  status      MockupStatus @default(QUEUED)
+  deployedUrl String?
+  notes       String       @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
