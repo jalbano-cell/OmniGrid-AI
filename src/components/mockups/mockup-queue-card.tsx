@@ -7,7 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronRight, ClipboardCopy, Link2, MessageSquareText, CheckCircle2, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ChevronDown, ChevronRight, ClipboardCopy, Eye, Link2, MessageSquareText, CheckCircle2, X } from "lucide-react";
 import type { MockupStatus } from "@prisma/client";
 import { useMockupQueue } from "./mockup-queue-context";
 import type { MockupQueueItemWithBusiness } from "@/app/actions/mockups";
@@ -59,6 +67,7 @@ export function MockupQueueCard({
   const { setStatus, setUrl, setNotes, markSent, remove } = useMockupQueue();
   const [notesDraft, setNotesDraft] = useState(item.notes);
   const [urlDraft, setUrlDraft] = useState(item.deployedUrl ?? "");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const { business } = item;
   const hasUrl = Boolean(item.deployedUrl);
@@ -128,6 +137,22 @@ export function MockupQueueCard({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label="Preview build prompt"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <Eye className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Preview build prompt</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Copy build prompt"
               onClick={() => copyText(buildPrompt(item), "Build prompt copied")}
             >
               <ClipboardCopy className="h-3 w-3" />
@@ -142,6 +167,7 @@ export function MockupQueueCard({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label="Copy link"
               disabled={!hasUrl}
               onClick={() => hasUrl && copyText(item.deployedUrl as string, "Link copied")}
             >
@@ -157,6 +183,7 @@ export function MockupQueueCard({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label="Text link"
               disabled={!hasUrl}
               onClick={() => {
                 if (!hasUrl) return;
@@ -171,7 +198,13 @@ export function MockupQueueCard({
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-xs" onClick={() => markSent(item.id)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Mark sent"
+              onClick={() => markSent(item.id)}
+            >
               <CheckCircle2 className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
@@ -184,6 +217,7 @@ export function MockupQueueCard({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label="Remove"
               className="ml-auto text-destructive hover:text-destructive"
               onClick={() => remove(item.id)}
             >
@@ -193,6 +227,26 @@ export function MockupQueueCard({
           <TooltipContent>Remove</TooltipContent>
         </Tooltip>
       </div>
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Build prompt — {business.name}</DialogTitle>
+            <DialogDescription>What gets copied when you use the build prompt for this lead.</DialogDescription>
+          </DialogHeader>
+          <p className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
+            {buildPrompt(item)}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={() => copyText(buildPrompt(item), "Build prompt copied")}>
+              <ClipboardCopy className="h-4 w-4" /> Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

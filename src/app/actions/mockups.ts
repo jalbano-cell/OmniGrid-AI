@@ -92,7 +92,14 @@ export async function addManualLeadToMockupQueueAction(input: {
     await prisma.note.create({ data: { businessId: business.id, content: input.notes.trim() } });
   }
 
-  const item = await addToMockupQueueAction(business.id);
+  let item = await addToMockupQueueAction(business.id);
+  // Also seed the queue card's own notes field with what was typed in the
+  // dialog, so it shows up on the card immediately rather than only living
+  // in the business's separate Notes history.
+  if (input.notes?.trim() && !item.notes) {
+    item = await updateMockupNotesAction(item.id, input.notes.trim());
+  }
+
   await logEvent({
     type: "APPROVAL_ACTION",
     message: `${existing ? "Queued existing lead" : "Added manual lead"} ${business.name} to mockup queue via Google Maps link`,
