@@ -11,7 +11,11 @@ import { format } from "date-fns";
 export default async function CalendarPage() {
   const [meetings, businesses, googleAuth] = await Promise.all([
     prisma.meeting.findMany({ include: { business: true }, orderBy: { datetime: "asc" } }),
-    prisma.business.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: "asc" } }),
+    prisma.business.findMany({
+      where: { deletedAt: null },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+    }),
     getGoogleAuthStatus(),
   ]);
 

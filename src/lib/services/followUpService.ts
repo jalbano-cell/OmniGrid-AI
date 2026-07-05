@@ -113,7 +113,7 @@ export async function runFollowUps(): Promise<FollowUpRunSummary> {
   const summary: FollowUpRunSummary = { checked: 0, followUpsCreated: 0, markedCold: 0, errors: 0 };
 
   const candidates = await prisma.business.findMany({
-    where: { status: "SENT", followUpStage: { lt: 2 } },
+    where: { deletedAt: null, status: "SENT", followUpStage: { lt: 2 } },
   });
 
   for (const business of candidates) {

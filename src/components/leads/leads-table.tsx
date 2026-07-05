@@ -88,23 +88,23 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
         className="max-w-sm h-8"
       />
       <div className="rounded-lg border border-border/60 overflow-hidden">
-        <Table containerClassName="max-h-[70vh] overflow-auto">
+        <Table className="table-fixed" containerClassName="max-h-[70vh] overflow-auto">
           <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
-              <TableHead className="h-9 px-2 py-1.5 min-w-[140px] max-w-[220px]">Company</TableHead>
-              <TableHead className="h-9 px-2 py-1.5 max-w-[100px]">Industry</TableHead>
-              <TableHead className="h-9 px-2 py-1.5 max-w-[100px]">Location</TableHead>
-              <TableHead className="h-9 px-2 py-1.5 max-w-[160px]">Contact</TableHead>
-              <TableHead className="h-9 px-2 py-1.5 w-fit">Score</TableHead>
-              <TableHead className="h-9 px-2 py-1.5 w-fit">Status</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[200px]">Company</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[100px]">Industry</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[90px]">Location</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[170px]">Contact</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[64px]">Score</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-[110px]">Status</TableHead>
               <TableHead className="h-9 px-2 py-1.5 w-9" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="px-2 py-1.5 font-medium min-w-[140px] max-w-[220px]">
-                  <Link href={`/crm/${b.id}`} className="hover:underline truncate inline-block max-w-[180px] align-bottom" title={b.name}>
+                <TableCell className="px-2 py-1.5 font-medium w-[200px] overflow-hidden">
+                  <Link href={`/crm/${b.id}`} className="hover:underline truncate inline-block max-w-[170px] align-bottom" title={b.name}>
                     {b.name}
                   </Link>
                   {b.website && (
@@ -118,17 +118,17 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
                     </a>
                   )}
                 </TableCell>
-                <TableCell className="px-2 py-1.5 max-w-[100px] truncate text-muted-foreground" title={b.industry}>
+                <TableCell className="px-2 py-1.5 w-[100px] truncate text-muted-foreground" title={b.industry}>
                   {b.industry}
                 </TableCell>
-                <TableCell className="px-2 py-1.5 max-w-[100px] truncate text-muted-foreground" title={b.city}>
+                <TableCell className="px-2 py-1.5 w-[90px] truncate text-muted-foreground" title={b.city}>
                   {b.city}
                 </TableCell>
-                <TableCell className="px-2 py-1.5 max-w-[160px] truncate text-muted-foreground text-xs" title={b.email ?? b.phone ?? undefined}>
+                <TableCell className="px-2 py-1.5 w-[170px] truncate text-muted-foreground text-xs" title={b.email ?? b.phone ?? undefined}>
                   {b.email ?? b.phone ?? <span className="italic">none found</span>}
                 </TableCell>
-                <TableCell className="px-2 py-1.5 w-fit">{b.opportunityScore != null ? <ScoreBadge score={b.opportunityScore} size="sm" /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
-                <TableCell className="px-2 py-1.5 w-fit">
+                <TableCell className="px-2 py-1.5 w-[64px]">{b.opportunityScore != null ? <ScoreBadge score={b.opportunityScore} size="sm" /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="px-2 py-1.5 w-[110px]">
                   <StatusBadge status={b.status} />
                 </TableCell>
                 <TableCell className="px-2 py-1.5 w-9">

@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
 
   const results = await prisma.business.findMany({
     where: {
+      deletedAt: null,
       OR: [
         { name: { contains: q } },
         { city: { contains: q } },

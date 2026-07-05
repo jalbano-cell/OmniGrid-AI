@@ -13,13 +13,13 @@ export interface OverviewStats {
 export async function getOverviewStats(): Promise<OverviewStats> {
   const [leadsFound, auditsCompleted, emailsDrafted, emailsSent, repliedCount, meetingsBooked, closedWon] =
     await Promise.all([
-      prisma.business.count(),
+      prisma.business.count({ where: { deletedAt: null } }),
       prisma.audit.count(),
       prisma.outreach.count(),
       prisma.outreach.count({ where: { sentAt: { not: null } } }),
       prisma.outreach.count({ where: { repliedAt: { not: null } } }),
       prisma.meeting.count(),
-      prisma.business.count({ where: { status: "CLOSED_WON" } }),
+      prisma.business.count({ where: { deletedAt: null, status: "CLOSED_WON" } }),
     ]);
 
   const replyRate = emailsSent > 0 ? Math.round((repliedCount / emailsSent) * 100) : 0;
@@ -54,6 +54,7 @@ export async function getEmailsSentOverTime(days = 30) {
 export async function getTopIndustries(limit = 8) {
   const rows = await prisma.business.groupBy({
     by: ["industry"],
+    where: { deletedAt: null },
     _count: { industry: true },
     orderBy: { _count: { industry: "desc" } },
     take: limit,
@@ -64,6 +65,7 @@ export async function getTopIndustries(limit = 8) {
 export async function getTopCities(limit = 8) {
   const rows = await prisma.business.groupBy({
     by: ["city"],
+    where: { deletedAt: null },
     _count: { city: true },
     orderBy: { _count: { city: "desc" } },
     take: limit,
@@ -79,6 +81,7 @@ export async function getAverageWebsiteScore() {
 export async function getPipelineStages() {
   const rows = await prisma.business.groupBy({
     by: ["status"],
+    where: { deletedAt: null },
     _count: { status: true },
   });
   return rows.map((r) => ({ status: r.status, count: r._count.status }));

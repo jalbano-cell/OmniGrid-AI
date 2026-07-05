@@ -70,7 +70,7 @@ export async function runDailyPipeline(): Promise<DailyRunSummary> {
   // Step 3: audit only leads that don't have one yet (the quality filter in
   // discoverLeads already kept obviously bad leads out of the database).
   const needsAudit = await prisma.business.findMany({
-    where: { audits: { none: {} } },
+    where: { deletedAt: null, audits: { none: {} } },
     orderBy: { createdAt: "asc" },
     take: MAX_AUDITS_PER_RUN,
   });
@@ -90,7 +90,7 @@ export async function runDailyPipeline(): Promise<DailyRunSummary> {
   // is personalized from researched business facts (services, service area,
   // years in business), not website quality.
   const readyForOutreach = await prisma.business.findMany({
-    where: { outreach: { none: {} }, status: { notIn: ["DO_NOT_CONTACT", "COLD"] } },
+    where: { deletedAt: null, outreach: { none: {} }, status: { notIn: ["DO_NOT_CONTACT", "COLD"] } },
     orderBy: { createdAt: "asc" },
     take: MAX_EMAILS_PER_RUN,
   });

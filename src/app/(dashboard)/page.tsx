@@ -13,7 +13,7 @@ export default async function OverviewPage() {
   const stats = await getOverviewStats();
 
   const [recentLeads, recentLogs] = await Promise.all([
-    prisma.business.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.business.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" }, take: 6 }),
     prisma.logEntry.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
   ]);
 

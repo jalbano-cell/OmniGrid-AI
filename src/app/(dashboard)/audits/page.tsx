@@ -9,7 +9,7 @@ export default async function AuditsPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.business.findMany({
-      where: { website: { not: null }, audits: { none: {} } },
+      where: { deletedAt: null, website: { not: null }, audits: { none: {} } },
       select: { id: true, name: true, website: true, city: true, industry: true },
       take: 20,
     }),

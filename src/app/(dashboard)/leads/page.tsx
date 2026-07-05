@@ -9,7 +9,7 @@ import { AlertTriangle } from "lucide-react";
 export default async function LeadsPage() {
   const [settings, businesses] = await Promise.all([
     getSettings(),
-    prisma.business.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.business.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "desc" } }),
   ]);
 
   return (

@@ -48,6 +48,12 @@ model Business {
   lastContactDate  DateTime?
   followUpStage    Int            @default(0) // 0 = none sent, 1 = follow-up #1 sent, 2 = follow-up #2 sent
 
+  // Soft delete: hides the lead from the Leads list without freeing up its
+  // website/name for re-discovery — discoverLeads()'s dedup checks ignore
+  // this field on purpose, so a deleted lead found again on a later search
+  // still counts as a duplicate and is never recreated.
+  deletedAt DateTime?
+
   airtableRecordId String? // the linked "Leads" record in Airtable, once synced
 
   createdAt DateTime @default(now())

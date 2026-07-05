@@ -13,10 +13,14 @@ export async function searchLeadsAction(input: LeadSearchInput) {
   return outcome;
 }
 
+/**
+ * Soft delete only — the row stays in the database so discoverLeads()'s
+ * website/name dedup checks still recognize it and never recreate it if the
+ * same business turns up in a later search.
+ */
 export async function deleteBusinessAction(businessId: string) {
-  const business = await prisma.business.findUnique({ where: { id: businessId } });
-  await prisma.business.delete({ where: { id: businessId } });
-  await logEvent({ type: "APPROVAL_ACTION", message: `Deleted lead ${business?.name ?? businessId}` });
+  const business = await prisma.business.update({ where: { id: businessId }, data: { deletedAt: new Date() } });
+  await logEvent({ type: "APPROVAL_ACTION", message: `Deleted lead ${business.name}` });
   revalidatePath("/leads");
 }
 
