@@ -80,31 +80,31 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Input
         placeholder="Filter leads by name, industry, city…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="max-w-sm"
+        className="max-w-sm h-8"
       />
-      <div className="rounded-lg border border-border/60 overflow-x-auto">
-        <Table>
-          <TableHeader>
+      <div className="rounded-lg border border-border/60 overflow-hidden">
+        <Table containerClassName="max-h-[70vh] overflow-auto">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
-              <TableHead>Business</TableHead>
-              <TableHead>Industry</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Opportunity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-10" />
+              <TableHead className="h-9 px-2 py-1.5 min-w-[140px] max-w-[220px]">Company</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 max-w-[100px]">Industry</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 max-w-[100px]">Location</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 max-w-[160px]">Contact</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-fit">Score</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-fit">Status</TableHead>
+              <TableHead className="h-9 px-2 py-1.5 w-9" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="font-medium">
-                  <Link href={`/crm/${b.id}`} className="hover:underline">
+                <TableCell className="px-2 py-1.5 font-medium min-w-[140px] max-w-[220px]">
+                  <Link href={`/crm/${b.id}`} className="hover:underline truncate inline-block max-w-[180px] align-bottom" title={b.name}>
                     {b.name}
                   </Link>
                   {b.website && (
@@ -118,19 +118,23 @@ export function LeadsTable({ businesses }: { businesses: Business[] }) {
                     </a>
                   )}
                 </TableCell>
-                <TableCell className="text-muted-foreground">{b.industry}</TableCell>
-                <TableCell className="text-muted-foreground">{b.city}</TableCell>
-                <TableCell className="text-muted-foreground text-xs">
+                <TableCell className="px-2 py-1.5 max-w-[100px] truncate text-muted-foreground" title={b.industry}>
+                  {b.industry}
+                </TableCell>
+                <TableCell className="px-2 py-1.5 max-w-[100px] truncate text-muted-foreground" title={b.city}>
+                  {b.city}
+                </TableCell>
+                <TableCell className="px-2 py-1.5 max-w-[160px] truncate text-muted-foreground text-xs" title={b.email ?? b.phone ?? undefined}>
                   {b.email ?? b.phone ?? <span className="italic">none found</span>}
                 </TableCell>
-                <TableCell>{b.opportunityScore != null ? <ScoreBadge score={b.opportunityScore} size="sm" /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
-                <TableCell>
+                <TableCell className="px-2 py-1.5 w-fit">{b.opportunityScore != null ? <ScoreBadge score={b.opportunityScore} size="sm" /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
+                <TableCell className="px-2 py-1.5 w-fit">
                   <StatusBadge status={b.status} />
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-2 py-1.5 w-9">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
                         {pendingId === b.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                       </Button>
                     </DropdownMenuTrigger>

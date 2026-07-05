@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="arcGrad" x1="50" y1="8" x2="50" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1A1A70"/>
+      <stop offset="45%"  stop-color="#1565C0"/>
+      <stop offset="100%" stop-color="#2196F3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 270° arc: top → counter-clockwise through left, bottom, ending at right -->
+  <path
+    d="M 50 8 A 42 42 0 1 0 92 50"
+    stroke="url(#arcGrad)"
+    stroke-width="9"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- Cyan dots at 12, 9, and 6 o'clock -->
+  <circle cx="50" cy="8"  r="6.5" fill="#00D4E8"/>
+  <circle cx="8"  cy="50" r="6.5" fill="#00D4E8"/>
+  <circle cx="50" cy="92" r="6.5" fill="#00D4E8"/>
+
+  <!-- Center hub dot -->
+  <circle cx="50" cy="50" r="6" fill="#00D4E8"/>
+
+  <!-- Bar extending right from hub -->
+  <rect x="50" y="44" width="34" height="12" rx="6" fill="#00D4E8"/>
+</svg>

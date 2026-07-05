@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { LoginForm } from "@/components/auth/login-form";
-import { Sparkles } from "lucide-react";
+import { Logo } from "@/components/layout/logo";
 
 export default async function LoginPage({
   searchParams,
@@ -18,9 +18,7 @@ export default async function LoginPage({
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <Logo size="md" withWordmark={false} />
           <div>
             <h1 className="text-lg font-semibold tracking-tight">OmniGrid AI</h1>
             <p className="text-sm text-muted-foreground mt-1">Internal Sales Outreach Platform</p>

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "./nav-items";
+import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
-import { Sparkles, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { MockupQueuePanel } from "@/components/mockups/mockup-queue-panel";
 
@@ -14,10 +15,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 border-r border-sidebar-border bg-sidebar">
       <div className="flex items-center gap-2 px-5 h-14 border-b border-sidebar-border">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Sparkles className="h-4 w-4" />
-        </div>
-        <span className="font-semibold text-sm tracking-tight text-sidebar-foreground">OmniGrid AI</span>
+        <Logo size="sm" wordmarkClassName="text-sidebar-foreground" />
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col">
