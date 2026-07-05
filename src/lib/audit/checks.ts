@@ -28,6 +28,28 @@ const CTA_WORDS = [
 
 const TRUST_WORDS = ["testimonial", "review", "certified", "licensed", "insured", "guarantee", "award", "accredited", "bbb", "since 19", "since 20", "years of experience", "years in business"];
 
+// Third-party scheduling/booking platforms — an embed or link to any of
+// these is a deterministic signal the business collects appointments online,
+// not just a rendered-looking "Book Now" button with no real backend.
+const BOOKING_WIDGET_DOMAINS = [
+  "calendly.com", "acuityscheduling.com", "squareup.com/appointments", "square.site",
+  "setmore.com", "simplybook.me", "booksy.com", "vagaro.com", "fresha.com",
+  "opentable.com", "resy.com", "schedulicity.com", "appointlet.com", "youcanbook.me",
+  "mindbodyonline.com", "glossgenius.com", "styleseat.com", "timetap.com",
+  "honeybook.com", "tidycal.com", "bookafy.com", "10to8.com", "appointfix.com",
+  "zcal.co", "cal.com",
+];
+
+function hasBookingWidget($: CheerioAPI): boolean {
+  const embedSrcs = $("iframe[src], script[src]").map((_, el) => $(el).attr("src") ?? "").get();
+  const linkHrefs = $("a[href]").map((_, el) => $(el).attr("href") ?? "").get();
+  const hasKnownDomain = [...embedSrcs, ...linkHrefs].some((url) =>
+    BOOKING_WIDGET_DOMAINS.some((domain) => url.includes(domain))
+  );
+  const hasCalendlyWidgetMarkup = $('.calendly-inline-widget, [class*="calendly-"]').length > 0;
+  return hasKnownDomain || hasCalendlyWidgetMarkup;
+}
+
 export function analyzeUiUx($: CheerioAPI): CategoryResult {
   const hasHeader = $("header").length > 0;
   const hasNav = $("nav").length > 0;
@@ -143,6 +165,26 @@ export function analyzeCta($: CheerioAPI): CategoryResult {
     { category: "cta", points: 30, maxPoints: 30, pass: buttonLikeElements > 0, message: buttonLikeElements > 0 ? `${buttonLikeElements} button-styled call-to-action element(s) found` : "No visually distinct call-to-action buttons found" },
     { category: "cta", points: 20, maxPoints: 20, pass: hasPhoneCta, message: hasPhoneCta ? "Click-to-call phone link present" : "No click-to-call phone link found" },
     { category: "cta", points: 15, maxPoints: 15, pass: hasFormCta, message: hasFormCta ? "Has a contact/lead form" : "No contact or lead-capture form found" },
+  ]);
+}
+
+/**
+ * How this business actually collects client info/booking online — the
+ * scoring spec calls for weighting real booking widgets and contact forms
+ * highest, treating a bare phone number or email address as the outdated
+ * fallback, and scoring a site with neither booking nor a contact form low.
+ */
+export function analyzeBookingCapture($: CheerioAPI): CategoryResult {
+  const bookingWidget = hasBookingWidget($);
+  const hasForm = $("form").length > 0;
+  const hasPhoneCta = $('a[href^="tel:"]').length > 0;
+  const hasMailtoCta = $('a[href^="mailto:"]').length > 0;
+
+  return scoreCategory([
+    { category: "booking", points: 50, maxPoints: 50, pass: bookingWidget, message: bookingWidget ? "Has an online booking/scheduling widget" : "No online booking or scheduling widget found" },
+    { category: "booking", points: 30, maxPoints: 30, pass: hasForm, message: hasForm ? "Has a contact or lead-capture form" : "No contact or lead-capture form found — visitors have no way to submit their info online" },
+    { category: "booking", points: 12, maxPoints: 12, pass: hasPhoneCta, message: hasPhoneCta ? "Click-to-call phone link present" : "No click-to-call phone link found" },
+    { category: "booking", points: 8, maxPoints: 8, pass: hasMailtoCta, message: hasMailtoCta ? "Click-to-email link present" : "No click-to-email link found" },
   ]);
 }
 

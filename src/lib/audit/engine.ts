@@ -14,6 +14,7 @@ import {
   analyzeCta,
   analyzeTrust,
   analyzeBrand,
+  analyzeBookingCapture,
   analyzeImageOptimization,
   checkBrokenLinks,
   type CategoryResult,
@@ -167,6 +168,7 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
   const cta = analyzeCta($);
   const trust = analyzeTrust($, fetched.hasSsl, contactInfoFound);
   const brand = analyzeBrand($);
+  const booking = analyzeBookingCapture($);
   const images = analyzeImageOptimization($);
   const brokenLinks = await checkBrokenLinks($, fetched.finalUrl);
 
@@ -181,7 +183,7 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
     )
   );
 
-  const allChecks = [...Object.values(categories), images].flatMap((c) => c.checks);
+  const allChecks = [...Object.values(categories), images, booking].flatMap((c) => c.checks);
   const strengths = allChecks.filter((c) => c.pass).map((c) => c.message);
   const weaknesses = allChecks.filter((c) => !c.pass).map((c) => c.message);
   const recommendations = weaknesses.map((w) => toRecommendation(w));
@@ -193,13 +195,12 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
     strengths.push("No broken internal links detected in the sampled pages");
   }
 
-  // Opportunity score: rewards agencies most where the site is weak AND the
-  // business is reachable (worth the outreach effort). A pristine site gets
-  // a low opportunity score regardless of contactability.
-  let opportunityScore = Math.round(100 - overallScore);
-  if (contactInfoFound) opportunityScore += 10;
-  if (overallScore >= 85) opportunityScore -= 20;
-  opportunityScore = Math.max(0, Math.min(100, opportunityScore));
+  // Score reflects how modern this business's client-intake methods are: a
+  // real online booking/scheduling widget and a contact/lead form score
+  // highest; a bare click-to-call or mailto: link is treated as the
+  // outdated fallback and scores low; a site with neither booking nor a
+  // contact form scores lowest of all.
+  const opportunityScore = booking.score;
 
   const scoreBreakdown = buildScoreBreakdown(categories, business.industry, contactInfoFound);
 
@@ -219,6 +220,7 @@ export async function runWebsiteAudit(businessId: string): Promise<AuditRunResul
         ctaScore: cta.score,
         trustScore: trust.score,
         brandScore: brand.score,
+        bookingScore: booking.score,
         hasSsl: fetched.hasSsl,
         loadTimeMs: fetched.tookMs,
         contactInfoFound,

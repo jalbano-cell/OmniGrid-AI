@@ -67,7 +67,7 @@ export function AuditsTable({ audits }: { audits: AuditWithBusiness[] }) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="min-opportunity" className="text-xs text-muted-foreground">
-            Min Opportunity
+            Min Score
           </Label>
           <Input
             id="min-opportunity"
@@ -108,7 +108,7 @@ export function AuditsTable({ audits }: { audits: AuditWithBusiness[] }) {
               <TableRow>
                 <TableHead>Business</TableHead>
                 <TableHead>Overall</TableHead>
-                <TableHead>Opportunity</TableHead>
+                <TableHead>Score</TableHead>
                 <TableHead>SSL</TableHead>
                 <TableHead>Contact Info</TableHead>
                 <TableHead>Audited</TableHead>

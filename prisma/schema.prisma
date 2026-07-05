@@ -112,6 +112,7 @@ model Audit {
   ctaScore           Int
   trustScore         Int
   brandScore         Int
+  bookingScore       Int? // null for audits run before this field existed — how well the site collects client info/booking (form, booking widget, click-to-call/email)
 
   hasSsl           Boolean
   loadTimeMs       Int?

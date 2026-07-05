@@ -20,6 +20,7 @@ const SUB_SCORES: { key: keyof Audit; label: string }[] = [
   { key: "ctaScore", label: "Calls to Action" },
   { key: "trustScore", label: "Trust Signals" },
   { key: "brandScore", label: "Brand Consistency" },
+  { key: "bookingScore", label: "Booking/Contact" },
 ];
 
 interface ScoreBreakdownPart {
@@ -76,7 +77,7 @@ export function AuditHistory({ audits }: { audits: Audit[] }) {
           </AccordionTrigger>
           <AccordionContent className="space-y-5 pb-4">
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {SUB_SCORES.map(({ key, label }) => (
+              {SUB_SCORES.filter(({ key }) => audit[key] != null).map(({ key, label }) => (
                 <div key={key} className="text-center">
                   <ScoreBadge score={audit[key] as number} size="sm" />
                   <p className="text-[12px] text-muted-foreground mt-1">{label}</p>
