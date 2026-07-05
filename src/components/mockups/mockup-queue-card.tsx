@@ -29,12 +29,15 @@ const STATUS_OPTIONS: { value: MockupStatus; label: string }[] = [
   { value: "BOOKED", label: "Booked" },
 ];
 
-function buildPrompt(item: MockupQueueItemWithBusiness) {
+/** notesOverride lets callers pass the in-progress notes draft so copy/preview never shows a stale, not-yet-saved value. */
+function buildPrompt(item: MockupQueueItemWithBusiness, notesOverride?: string) {
   const { business } = item;
   const location = [business.city, business.province].filter(Boolean).join(", ");
   const contact = business.phone ?? "no phone on file";
   const siteState = business.website ? "an outdated site" : "no website";
-  return `Build a polished one-page demo website for ${business.name}, a ${business.industry} in ${location}. Contact: ${contact}. They currently have ${siteState}. Include hero, services, testimonials, and a contact/booking CTA.`;
+  const base = `Build a polished one-page demo website for ${business.name}, a ${business.industry} in ${location}. Contact: ${contact}. They currently have ${siteState}. Include hero, services, testimonials, and a contact/booking CTA.`;
+  const notes = (notesOverride ?? item.notes).trim();
+  return notes ? `${base} Additional context from the lead: ${notes}` : base;
 }
 
 // Recipient prefilled so the link goes straight to the prospect; iOS and
@@ -153,7 +156,7 @@ export function MockupQueueCard({
               variant="ghost"
               size="icon-xs"
               aria-label="Copy build prompt"
-              onClick={() => copyText(buildPrompt(item), "Build prompt copied")}
+              onClick={() => copyText(buildPrompt(item, notesDraft), "Build prompt copied")}
             >
               <ClipboardCopy className="h-3 w-3" />
             </Button>
@@ -235,13 +238,13 @@ export function MockupQueueCard({
             <DialogDescription>What gets copied when you use the build prompt for this lead.</DialogDescription>
           </DialogHeader>
           <p className="whitespace-pre-wrap rounded-md border border-border/60 bg-muted/40 p-3 text-sm">
-            {buildPrompt(item)}
+            {buildPrompt(item, notesDraft)}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>
               Close
             </Button>
-            <Button onClick={() => copyText(buildPrompt(item), "Build prompt copied")}>
+            <Button onClick={() => copyText(buildPrompt(item, notesDraft), "Build prompt copied")}>
               <ClipboardCopy className="h-4 w-4" /> Copy
             </Button>
           </DialogFooter>
