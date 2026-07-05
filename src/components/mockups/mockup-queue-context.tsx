@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { MockupStatus } from "@prisma/client";
 import {
   addToMockupQueueAction,
+  addManualLeadToMockupQueueAction,
   markMockupSentAction,
   removeMockupAction,
   updateMockupNotesAction,
@@ -13,9 +14,21 @@ import {
   type MockupQueueItemWithBusiness,
 } from "@/app/actions/mockups";
 
+interface ManualLeadInput {
+  name: string;
+  industry: string;
+  city: string;
+  province?: string;
+  country?: string;
+  phone?: string;
+  googleProfile?: string;
+  notes?: string;
+}
+
 interface MockupQueueContextValue {
   items: MockupQueueItemWithBusiness[];
   addBusiness: (businessId: string) => Promise<void>;
+  addManualLead: (input: ManualLeadInput) => Promise<void>;
   setStatus: (id: string, status: MockupStatus) => Promise<void>;
   setUrl: (id: string, url: string) => Promise<void>;
   setNotes: (id: string, notes: string) => Promise<void>;
@@ -52,6 +65,15 @@ export function MockupQueueProvider({
       toast.success(before ? `${item.business.name} is already in the mockup queue` : `Added ${item.business.name} to mockup queue`);
     },
     [items, upsert]
+  );
+
+  const addManualLead = useCallback(
+    async (input: ManualLeadInput) => {
+      const item = await addManualLeadToMockupQueueAction(input);
+      upsert(item);
+      toast.success(`Added ${item.business.name} to mockup queue`);
+    },
+    [upsert]
   );
 
   const setStatus = useCallback(
@@ -95,8 +117,8 @@ export function MockupQueueProvider({
   }, [items]);
 
   const value = useMemo(
-    () => ({ items, addBusiness, setStatus, setUrl, setNotes, markSent, remove }),
-    [items, addBusiness, setStatus, setUrl, setNotes, markSent, remove]
+    () => ({ items, addBusiness, addManualLead, setStatus, setUrl, setNotes, markSent, remove }),
+    [items, addBusiness, addManualLead, setStatus, setUrl, setNotes, markSent, remove]
   );
 
   return <MockupQueueContext.Provider value={value}>{children}</MockupQueueContext.Provider>;

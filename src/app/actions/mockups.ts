@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { logEvent } from "@/lib/services/logger";
+import { resolveGoogleMapsLink } from "@/lib/services/googleMapsLead";
 import type { MockupStatus, Prisma } from "@prisma/client";
 
 const MOCKUP_ITEM_INCLUDE = {
@@ -42,6 +43,61 @@ export async function addToMockupQueueAction(businessId: string): Promise<Mockup
     include: MOCKUP_ITEM_INCLUDE,
   });
   await logEvent({ type: "APPROVAL_ACTION", message: `Queued mockup for ${item.business.name}`, businessId });
+  revalidatePath("/leads");
+  return item;
+}
+
+/** Step 1 of "Add from Google Maps": resolve the pasted link to a business name for the user to confirm/edit before anything is created. */
+export async function resolveGoogleMapsLeadAction(url: string) {
+  return resolveGoogleMapsLink(url);
+}
+
+/**
+ * Step 2: creates the business (for a lead found manually — e.g. on Google
+ * Maps — outside the industry/city search) and queues it for a mockup.
+ * These leads typically have no website of their own, so there's nothing
+ * for runWebsiteAudit to audit — going straight to the mockup queue is the
+ * point, not a shortcut around it.
+ */
+export async function addManualLeadToMockupQueueAction(input: {
+  name: string;
+  industry: string;
+  city: string;
+  province?: string;
+  country?: string;
+  phone?: string;
+  googleProfile?: string;
+  notes?: string;
+}): Promise<MockupQueueItemWithBusiness> {
+  const existing = await prisma.business.findFirst({
+    where: { name: { equals: input.name, mode: "insensitive" }, city: { equals: input.city, mode: "insensitive" } },
+  });
+
+  const business =
+    existing ??
+    (await prisma.business.create({
+      data: {
+        name: input.name,
+        industry: input.industry,
+        city: input.city,
+        province: input.province,
+        country: input.country ?? "Canada",
+        phone: input.phone || null,
+        googleProfile: input.googleProfile,
+        source: "Manual (Google Maps)",
+      },
+    }));
+
+  if (!existing && input.notes?.trim()) {
+    await prisma.note.create({ data: { businessId: business.id, content: input.notes.trim() } });
+  }
+
+  const item = await addToMockupQueueAction(business.id);
+  await logEvent({
+    type: "APPROVAL_ACTION",
+    message: `${existing ? "Queued existing lead" : "Added manual lead"} ${business.name} to mockup queue via Google Maps link`,
+    businessId: business.id,
+  });
   revalidatePath("/leads");
   return item;
 }
