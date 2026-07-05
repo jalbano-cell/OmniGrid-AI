@@ -151,7 +151,8 @@ export async function markMockupSentAction(id: string): Promise<MockupQueueItemW
   return item;
 }
 
+/** deleteMany (not delete) so removing an item whose row is already gone — e.g. stale client state — is a no-op, not a thrown error. */
 export async function removeMockupAction(id: string): Promise<void> {
-  await prisma.mockupQueueItem.delete({ where: { id } });
+  await prisma.mockupQueueItem.deleteMany({ where: { id } });
   revalidatePath("/leads");
 }

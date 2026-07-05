@@ -109,12 +109,24 @@ export function MockupQueueProvider({
     [upsert]
   );
 
-  const remove = useCallback(async (id: string) => {
-    const removed = items.find((i) => i.id === id);
-    await removeMockupAction(id);
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    if (removed) toast.success(`Removed ${removed.business.name} from mockup queue`);
-  }, [items]);
+  const remove = useCallback(
+    async (id: string) => {
+      const removed = items.find((i) => i.id === id);
+      // Drop it from local state regardless of whether the server call
+      // succeeds — removeMockupAction is idempotent (deleteMany), so the
+      // only way this throws is a real connectivity/server error, and even
+      // then a stale card that no longer matches the server is worth
+      // clearing rather than leaving stuck with no way to dismiss it.
+      setItems((prev) => prev.filter((i) => i.id !== id));
+      try {
+        await removeMockupAction(id);
+        if (removed) toast.success(`Removed ${removed.business.name} from mockup queue`);
+      } catch {
+        toast.error("Removed locally, but the server didn't confirm — refresh to double-check");
+      }
+    },
+    [items]
+  );
 
   const value = useMemo(
     () => ({ items, addBusiness, addManualLead, setStatus, setUrl, setNotes, markSent, remove }),
